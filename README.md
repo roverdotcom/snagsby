@@ -8,6 +8,14 @@ objects in Docker containers.
 
 It can help with workflows like this one: https://blogs.aws.amazon.com/security/post/Tx2B3QUWAA7KOU/How-to-Manage-Secrets-for-Amazon-EC2-Container-Service-Based-Applications-by-Usi
 
+## Installation
+
+Linux and OSX 64 bit binaries are available on Github
+
+```bash
+curl -L https://github.com/roverdotcom/snagsby/releases/download/v0.1.0/snagsby-0.1.0.linux-amd64.gz | gunzip -c > ./snagsby && chmod 755 ./snagsby
+```
+
 ## JSON Format
 
 The s3 object should contain a single JSON object:
