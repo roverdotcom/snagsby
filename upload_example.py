@@ -64,6 +64,7 @@ secrets = {
     "DOUBLE_QUOTES": 'My name is "Charles"',
     "SINGLE_QUOTE": "My surname is 'Dickens'",
     "NUMBER": 1,
+    "FLOAT_LIKE": 7.777,
     "yes": True,
     "no": False,
     "will fail": "because of the space in the key",

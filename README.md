@@ -17,7 +17,10 @@ The s3 object should contain a single JSON object:
 {
   "processes": 2,
   "multiline_config": "123\n456\n789",
-  "api_key": "abc123"
+  "api_key": "abc123",
+  "yes": true,
+  "no": false,
+  "float_like": 7.777
 }
 ```
 
@@ -35,6 +38,9 @@ Would render:
 export PROCESSES=$'2'
 export MULTILINE_CONFIG=$'123\n456\n789'
 export API_KEY=$'abc123'
+export NO=$'0'
+export YES=$'1'
+export FLOAT_LIKE=$'7.777'
 ```
 
 You can supply sources in a comma delimited `SNAGSBY_SOURCE` environment variable:
@@ -44,8 +50,8 @@ SNAGSBY_SOURCE="s3://my-bucket/secrets1.json, s3://my-bucket/secrets2.json" ./bi
 
 # -e will fail on errors and exit 1
 ./bin/snagsby -e \
-  s3://my-bucket/secrets1.json \
-  s3://my-bucket/secrets2.json
+  s3://my-bucket/config.json \
+  s3://my-bucket/config2.json
 ```
 
 An example docker entrypoint may look like:
