@@ -1,0 +1,7 @@
+language: go
+script:
+  - go get
+  - make test
+sudo: false
+notifications:
+  email: false
