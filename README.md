@@ -1,4 +1,4 @@
-# Snagsby
+# Snagsby [![Build Status](https://travis-ci.org/roverdotcom/snagsby.svg?branch=master)](https://travis-ci.org/roverdotcom/snagsby)
 
 Snagsby reads a JSON object from an S3 bucket and outputs the keys and values
 in a format that can be evaluated by a shell to set environment variables.
