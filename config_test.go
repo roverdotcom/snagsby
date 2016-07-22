@@ -13,6 +13,18 @@ func TestSplitEnvArg(t *testing.T) {
 	if o[1] != "Dickens" {
 		t.Fail()
 	}
+	spacedString := splitEnvArg("Charles     Dickens")
+	if spacedString[0] != "Charles" {
+		t.Errorf("Expecting Charles got %s", spacedString)
+	}
+
+	if v := splitEnvArg(" charles  dickens"); v[0] != "charles" {
+		t.Errorf("Expected charles got %s", v)
+	}
+
+	if v := splitEnvArg(" charles  "); v[0] != "charles" {
+		t.Errorf("Expected charles got %s", v)
+	}
 }
 
 func TestNew(t *testing.T) {

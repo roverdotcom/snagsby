@@ -4,9 +4,10 @@ import (
 	"errors"
 	"net/url"
 	"regexp"
+	"strings"
 )
 
-var commaSplit = regexp.MustCompile(`\s*,\s*`)
+var commaSplit = regexp.MustCompile(`[\s|,]+`)
 
 // Config is the main configuration object
 type Config struct {
@@ -19,7 +20,7 @@ func NewConfig() *Config {
 }
 
 func splitEnvArg(envArg string) []string {
-	return commaSplit.Split(envArg, -1)
+	return commaSplit.Split(strings.TrimSpace(envArg), -1)
 }
 
 // SetSources will set the internal sources slice from a list of strings or
@@ -29,7 +30,7 @@ func (c *Config) SetSources(args []string, env string) ([]*url.URL, error) {
 	var urls []*url.URL
 
 	if len(args) == 0 && env == "" {
-		return urls, errors.New("Bad")
+		return urls, errors.New("No source provided")
 	}
 
 	if len(args) > 0 {
