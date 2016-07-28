@@ -43,12 +43,12 @@ snagsby s3://my-bucket/config.json?region=us-west-2
 Would render:
 
 ```bash
-export PROCESSES=$'2'
-export MULTILINE_CONFIG=$'123\n456\n789'
-export API_KEY=$'abc123'
-export NO=$'0'
-export YES=$'1'
-export FLOAT_LIKE=$'7.777'
+export PROCESSES="2"
+export MULTILINE_CONFIG="123\n456\n789"
+export API_KEY="abc123"
+export NO="0"
+export YES="1"
+export FLOAT_LIKE="7.777"
 ```
 
 You can supply sources in a comma delimited `SNAGSBY_SOURCE` environment variable:

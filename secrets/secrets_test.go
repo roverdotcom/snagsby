@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-func TestNewlineEscaping(t *testing.T) {
-	s := Secret{Key: "test", Value: "hi\n123"}
+func TestQuoteEscaping(t *testing.T) {
+	s := Secret{Key: "test", Value: `hi "123"`}
 	rendered := s.Export()
-	expected := "export TEST=$'hi\\n123'"
+	expected := `export TEST="hi \"123\""`
 	if rendered != expected {
 		t.Errorf("%s != %s", expected, rendered)
 	}
@@ -127,7 +127,7 @@ func TestReadSecretsIgnoresKeysWithSpaces(t *testing.T) {
 
 func TestExportFormat(t *testing.T) {
 	s := Secret{Key: "hello", Value: "world"}
-	expected := `export HELLO=$'world'`
+	expected := `export HELLO="world"`
 	if s.Export() != expected {
 		t.Errorf("Expected '%s' == '%s'", s.Export(), expected)
 	}

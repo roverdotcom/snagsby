@@ -27,14 +27,12 @@ type Secret struct {
 // Export returns a string that can be evaluated by a shell to set key=value in
 // the environment
 func (s *Secret) Export() string {
-	newLines := regexp.MustCompile(`\n`)
-	singleQuotes := regexp.MustCompile(`'`)
+	quotesRegexp := regexp.MustCompile(`"`)
 	v := s.Value
-	v = newLines.ReplaceAllString(v, `\n`)
-	v = singleQuotes.ReplaceAllString(v, `\'`)
+	v = quotesRegexp.ReplaceAllString(v, `\"`)
 
 	// Wrap in export $''
-	return ("export " + strings.ToUpper(s.Key) + "=$'" + v + "'")
+	return ("export " + strings.ToUpper(s.Key) + "=\"" + v + "\"")
 }
 
 // Collection is a collection of single secrets and the source. If there were

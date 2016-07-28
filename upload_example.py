@@ -52,15 +52,10 @@ import boto3
 s3 = boto3.resource('s3')
 bucket = s3.Bucket('rover-bryan')
 
-multiline_secret = """123
-456
-789
-10"""
 
 secrets = {
     "SECRET": "tulkinghorn",
     "upcase": "Keys will be upcased.",
-    "MULTILINE": multiline_secret,
     "DOUBLE_QUOTES": 'My name is "Charles"',
     "SINGLE_QUOTE": "My surname is 'Dickens'",
     "NUMBER": 1,
