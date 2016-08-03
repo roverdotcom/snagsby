@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/roverdotcom/snagsby/secrets"
 )
 
@@ -26,7 +27,7 @@ func main() {
 	flagSet.Parse(os.Args[1:])
 
 	if showVersion {
-		fmt.Printf("snagsby version %s\n", VERSION)
+		fmt.Printf("snagsby version %s (aws sdk: %s)\n", VERSION, aws.SDKVersion)
 		return
 	}
 
