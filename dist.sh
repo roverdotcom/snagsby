@@ -15,4 +15,6 @@ for os in linux darwin; do
     echo "Building $name"
     GOOS=$os GOARCH=$arch CGO_ENABLED=0 go build -o $path
     gzip < $path > $path.gz
+    cp $path $DIR/snagsby
+    (cd $DIR && tar zcf $path.tar.gz snagsby && rm snagsby)
 done
