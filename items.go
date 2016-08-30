@@ -18,6 +18,7 @@ import (
 
 // Key validation regexp
 var keyRegexp = regexp.MustCompile(`^\w+$`)
+var quotesRegexp = regexp.MustCompile(`"`)
 
 // Item is a representation of a single config key and value
 type Item struct {
@@ -27,12 +28,10 @@ type Item struct {
 // Export returns a string that can be evaluated by a shell to set key=value in
 // the environment
 func (i *Item) Export() string {
-	quotesRegexp := regexp.MustCompile(`"`)
 	v := i.Value
 	v = quotesRegexp.ReplaceAllString(v, `\"`)
 
-	// Wrap in export $''
-	return ("export " + strings.ToUpper(i.Key) + "=\"" + v + "\"")
+	return fmt.Sprintf("export %s=\"%s\"", strings.ToUpper(i.Key), v)
 }
 
 // Collection is a collection of single secrets and the source. If there were
@@ -50,10 +49,10 @@ func NewCollection() *Collection {
 	}
 }
 
-// WriteSecret will write a secret to the internal Secrets map if the key
+// AppendItem will add an item to the internal Items map if the key
 // validates. If the key doesn't validate an error will be returned and no
 // secret will be written.
-func (c *Collection) WriteSecret(key, val string) error {
+func (c *Collection) AppendItem(key, val string) error {
 	if !keyRegexp.MatchString(key) {
 		return errors.New(key + " contains invalid characters")
 	}
@@ -102,9 +101,9 @@ func (c *Collection) ReadSecretsFromReader(r io.Reader) error {
 	for k, v := range f {
 		switch vv := v.(type) {
 		case string:
-			c.WriteSecret(k, vv)
+			c.AppendItem(k, vv)
 		case float64:
-			c.WriteSecret(k, strconv.FormatFloat(vv, 'f', -1, 64))
+			c.AppendItem(k, strconv.FormatFloat(vv, 'f', -1, 64))
 		case bool:
 			var b string
 			if vv {
@@ -112,7 +111,7 @@ func (c *Collection) ReadSecretsFromReader(r io.Reader) error {
 			} else {
 				b = "0"
 			}
-			c.WriteSecret(k, b)
+			c.AppendItem(k, b)
 		}
 	}
 	return nil

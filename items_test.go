@@ -17,7 +17,7 @@ func TestQuoteEscaping(t *testing.T) {
 
 func TestCollection(t *testing.T) {
 	c := NewCollection()
-	c.WriteSecret("test", "key")
+	c.AppendItem("test", "key")
 	if c.Len() != 1 {
 		t.Fail()
 	}
@@ -31,32 +31,32 @@ func TestCollection(t *testing.T) {
 	}
 }
 
-func TestWriteSecret(t *testing.T) {
+func TestAppendItem(t *testing.T) {
 	c := NewCollection()
 
 	// We can write a wtring
-	if e := c.WriteSecret("hi", "world"); e != nil {
+	if e := c.AppendItem("hi", "world"); e != nil {
 		t.Fail()
 	}
 
 	// Keys are upcased
-	c.WriteSecret("up", "case")
+	c.AppendItem("up", "case")
 	if o, _ := c.GetSecretString("UP"); o != "case" {
 		t.Fail()
 	}
 
 	// Spaces are not OK
-	if e := c.WriteSecret("a space", "value"); e == nil {
+	if e := c.AppendItem("a space", "value"); e == nil {
 		t.Fail()
 	}
 
 	// Special characters are not OK
-	if e := c.WriteSecret("a[", "value"); e == nil {
+	if e := c.AppendItem("a[", "value"); e == nil {
 		t.Fail()
 	}
 
 	// Numbers are OK
-	if e := c.WriteSecret("123isOK", "value"); e != nil {
+	if e := c.AppendItem("123isOK", "value"); e != nil {
 		t.Fail()
 	}
 }
