@@ -16,6 +16,6 @@ run:
 .PHONY: run
 
 test:
-	go test ./...
+	go test -v ./...
 .DEFAULT_GOAL := test
 .PHONY: test
