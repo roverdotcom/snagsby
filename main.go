@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/roverdotcom/snagsby/secrets"
 )
 
 var (
@@ -34,10 +33,10 @@ func main() {
 	config := NewConfig()
 	config.SetSources(flagSet.Args(), os.Getenv("SNAGSBY_SOURCE"))
 
-	ch := make(chan *secrets.Collection, config.LenSources())
+	ch := make(chan *Collection, config.LenSources())
 	for _, source := range config.sources {
 		go func(s *url.URL) {
-			ch <- secrets.LoadSecretsFromSource(s)
+			ch <- LoadSecretsFromSource(s)
 		}(source)
 	}
 

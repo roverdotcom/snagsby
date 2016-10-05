@@ -1,4 +1,4 @@
-package secrets
+package main
 
 import (
 	"bytes"
@@ -18,73 +18,72 @@ import (
 
 // Key validation regexp
 var keyRegexp = regexp.MustCompile(`^\w+$`)
+var quotesRegexp = regexp.MustCompile(`"`)
 
-// Secret - Representation of a single secret's key and value
-type Secret struct {
+// Item is a representation of a single config key and value
+type Item struct {
 	Key, Value string
 }
 
 // Export returns a string that can be evaluated by a shell to set key=value in
 // the environment
-func (s *Secret) Export() string {
-	quotesRegexp := regexp.MustCompile(`"`)
-	v := s.Value
+func (i *Item) Export() string {
+	v := i.Value
 	v = quotesRegexp.ReplaceAllString(v, `\"`)
 
-	// Wrap in export $''
-	return ("export " + strings.ToUpper(s.Key) + "=\"" + v + "\"")
+	return fmt.Sprintf("export %s=\"%s\"", strings.ToUpper(i.Key), v)
 }
 
 // Collection is a collection of single secrets and the source. If there were
 // source processing errors they'll be saved in .Error
 type Collection struct {
-	secrets map[string]*Secret
-	Source  string
-	Error   error
+	Items  map[string]*Item
+	Source string
+	Error  error
 }
 
 // NewCollection initializes a collection
 func NewCollection() *Collection {
 	return &Collection{
-		secrets: make(map[string]*Secret),
+		Items: make(map[string]*Item),
 	}
 }
 
-// WriteSecret will write a secret to the internal Secrets map if the key
+// AppendItem will add an item to the internal Items map if the key
 // validates. If the key doesn't validate an error will be returned and no
 // secret will be written.
-func (s *Collection) WriteSecret(key, val string) error {
+func (c *Collection) AppendItem(key, val string) error {
 	if !keyRegexp.MatchString(key) {
 		return errors.New(key + " contains invalid characters")
 	}
 	key = strings.ToUpper(key)
-	s.secrets[key] = &Secret{Key: key, Value: val}
+	c.Items[key] = &Item{Key: key, Value: val}
 	return nil
 }
 
 // Len returns the number of secrets in the collection
-func (s *Collection) Len() int {
-	return len(s.secrets)
+func (c *Collection) Len() int {
+	return len(c.Items)
 }
 
 // Exports are all the exports
-func (s *Collection) Exports() string {
+func (c *Collection) Exports() string {
 	var buffer bytes.Buffer
-	for _, s := range s.secrets {
-		buffer.WriteString(s.Export())
+	for _, item := range c.Items {
+		buffer.WriteString(item.Export())
 		buffer.WriteString("\n")
 	}
 	return buffer.String()
 }
 
 // Print prints the exports
-func (s *Collection) Print() {
-	fmt.Print(s.Exports())
+func (c *Collection) Print() {
+	fmt.Print(c.Exports())
 }
 
 // GetSecretString will return the value of a single secret by key
-func (s *Collection) GetSecretString(key string) (string, bool) {
-	secret, ok := s.secrets[key]
+func (c *Collection) GetSecretString(key string) (string, bool) {
+	secret, ok := c.Items[key]
 	if !ok {
 		return "", false
 	}
@@ -93,18 +92,18 @@ func (s *Collection) GetSecretString(key string) (string, bool) {
 
 // ReadSecretsFromReader will read in secrets from an io.Reader
 // This will read secrets into the internal Secrest map and set any errors
-func (s *Collection) ReadSecretsFromReader(r io.Reader) error {
+func (c *Collection) ReadSecretsFromReader(r io.Reader) error {
 	var f map[string]interface{}
 	if err := json.NewDecoder(r).Decode(&f); err != nil {
-		s.Error = err
+		c.Error = err
 		return err
 	}
 	for k, v := range f {
 		switch vv := v.(type) {
 		case string:
-			s.WriteSecret(k, vv)
+			c.AppendItem(k, vv)
 		case float64:
-			s.WriteSecret(k, strconv.FormatFloat(vv, 'f', -1, 64))
+			c.AppendItem(k, strconv.FormatFloat(vv, 'f', -1, 64))
 		case bool:
 			var b string
 			if vv {
@@ -112,7 +111,7 @@ func (s *Collection) ReadSecretsFromReader(r io.Reader) error {
 			} else {
 				b = "0"
 			}
-			s.WriteSecret(k, b)
+			c.AppendItem(k, b)
 		}
 	}
 	return nil
