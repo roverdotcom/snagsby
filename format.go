@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"sort"
 )
@@ -16,9 +17,9 @@ func merge(i []map[string]string) map[string]string {
 	return out
 }
 
-// Returns a string to be evaluated by a shell for the setting of environment
+// EnvFormat returns a string to be evaluated by a shell for the setting of environment
 // variables. The variables will be ordered by key
-func env(m map[string]string) string {
+func EnvFormat(m map[string]string) string {
 	var buffer bytes.Buffer
 	var keys []string
 	for k := range m {
@@ -32,4 +33,13 @@ func env(m map[string]string) string {
 	}
 
 	return buffer.String()
+}
+
+// JSONFormat return a json representation of the map
+func JSONFormat(m map[string]string) string {
+	out, err := json.Marshal(m)
+	if err != nil {
+		return `{}`
+	}
+	return string(out)
 }

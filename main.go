@@ -63,5 +63,5 @@ func main() {
 	}
 
 	all := merge(rendered)
-	fmt.Print(env(all))
+	fmt.Print(EnvFormat(all))
 }

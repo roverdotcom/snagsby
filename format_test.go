@@ -36,15 +36,30 @@ func TestMerge(t *testing.T) {
 	}
 }
 
-func TestEnv(t *testing.T) {
+func TestEnvFormat(t *testing.T) {
 	in := map[string]string{
 		"ONE": "1",
 	}
-	out := env(in)
+	out := EnvFormat(in)
 	expected := "export ONE=\"1\"\n"
 	if strings.Compare(out, expected) != 0 {
 		fmt.Println(out)
 		fmt.Println(expected)
 		t.Errorf("Env is off.")
+	}
+}
+
+func TestJsonFormat(t *testing.T) {
+	in := map[string]string{
+		"B": "2",
+		"A": "1",
+		"Z": "10",
+	}
+	out := JSONFormat(in)
+	expected := `{"A":"1","B":"2","Z":"10"}`
+	if strings.Compare(out, expected) != 0 {
+		fmt.Println(out)
+		fmt.Println(expected)
+		t.Errorf("Env single line is off.")
 	}
 }
