@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 )
 
@@ -127,7 +126,6 @@ func TestReadSecretsIgnoresKeysWithSpaces(t *testing.T) {
 }
 
 func TestExportFormat(t *testing.T) {
-	fmt.Println("This is a test")
 	i := Item{Key: "hello", Value: "world"}
 	expected := `export HELLO="world"`
 	if i.Export() != expected {

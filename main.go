@@ -14,16 +14,6 @@ var (
 	setFail     = false
 )
 
-func merge(i []map[string]string) map[string]string {
-	out := make(map[string]string)
-	for _, m := range i {
-		for k, v := range m {
-			out[k] = v
-		}
-	}
-	return out
-}
-
 func main() {
 	flagSet := flag.NewFlagSet("snagsby", flag.ExitOnError)
 	flagSet.Usage = func() {
