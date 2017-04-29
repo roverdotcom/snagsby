@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -38,13 +39,10 @@ func TestMerge(t *testing.T) {
 func TestEnv(t *testing.T) {
 	in := map[string]string{
 		"ONE": "1",
-		"TWO": "2",
 	}
 	out := env(in)
-	expected := `export ONE="1"
-export TWO="2"
-`
-	if out != expected {
+	expected := "export ONE=\"1\"\n"
+	if strings.Compare(out, expected) != 0 {
 		fmt.Println(out)
 		fmt.Println(expected)
 		t.Errorf("Env is off.")
