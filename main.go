@@ -52,7 +52,7 @@ func main() {
 		}(source, job)
 	}
 
-	var collections []map[string]string
+	var rendered []map[string]string
 	for _, result := range jobs {
 		col := <-result
 
@@ -69,9 +69,9 @@ func main() {
 			continue
 		}
 
-		collections = append(collections, col.AsMap())
+		rendered = append(rendered, col.AsMap())
 	}
 
-	all := merge(collections)
+	all := merge(rendered)
 	fmt.Print(env(all))
 }
