@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,6 +31,18 @@ func (i *Item) Export() string {
 	v = quotesRegexp.ReplaceAllString(v, `\"`)
 
 	return fmt.Sprintf("export %s=\"%s\"", strings.ToUpper(i.Key), v)
+}
+
+// SafeKey returns an environment variable safe key
+func (i *Item) SafeKey() string {
+	return strings.ToUpper(i.Key)
+}
+
+// SafeValue returns an environment variable safe value
+func (i *Item) SafeValue() string {
+	v := i.Value
+	v = quotesRegexp.ReplaceAllString(v, `\"`)
+	return v
 }
 
 // Collection is a collection of single secrets and the source. If there were
@@ -66,19 +77,13 @@ func (c *Collection) Len() int {
 	return len(c.Items)
 }
 
-// Exports are all the exports
-func (c *Collection) Exports() string {
-	var buffer bytes.Buffer
-	for _, item := range c.Items {
-		buffer.WriteString(item.Export())
-		buffer.WriteString("\n")
+// AsMap represents the collection as a map[string]string
+func (c *Collection) AsMap() map[string]string {
+	out := make(map[string]string)
+	for _, i := range c.Items {
+		out[i.SafeKey()] = i.SafeValue()
 	}
-	return buffer.String()
-}
-
-// Print prints the exports
-func (c *Collection) Print() {
-	fmt.Print(c.Exports())
+	return out
 }
 
 // GetSecretString will return the value of a single secret by key

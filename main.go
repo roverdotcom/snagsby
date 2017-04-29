@@ -14,6 +14,16 @@ var (
 	setFail     = false
 )
 
+func merge(i []map[string]string) map[string]string {
+	out := make(map[string]string)
+	for _, m := range i {
+		for k, v := range m {
+			out[k] = v
+		}
+	}
+	return out
+}
+
 func main() {
 	flagSet := flag.NewFlagSet("snagsby", flag.ExitOnError)
 	flagSet.Usage = func() {
@@ -33,15 +43,18 @@ func main() {
 	config := NewConfig()
 	config.SetSources(flagSet.Args(), os.Getenv("SNAGSBY_SOURCE"))
 
-	ch := make(chan *Collection, config.LenSources())
+	var jobs []chan *Collection
 	for _, source := range config.sources {
-		go func(s *url.URL) {
-			ch <- LoadSecretsFromSource(s)
-		}(source)
+		job := make(chan *Collection)
+		jobs = append(jobs, job)
+		go func(s *url.URL, c chan *Collection) {
+			job <- LoadSecretsFromSource(s)
+		}(source, job)
 	}
 
-	for i := 0; i < config.LenSources(); i++ {
-		col := <-ch
+	var collections []map[string]string
+	for _, result := range jobs {
+		col := <-result
 
 		if col.Error != nil {
 			// Print errors to stderr
@@ -56,6 +69,9 @@ func main() {
 			continue
 		}
 
-		col.Print()
+		collections = append(collections, col.AsMap())
 	}
+
+	all := merge(collections)
+	fmt.Print(env(all))
 }
