@@ -33,13 +33,13 @@ func (i *Item) Export() string {
 	return fmt.Sprintf("export %s=\"%s\"", strings.ToUpper(i.Key), v)
 }
 
-// SafeKey returns an environment variable safe key
-func (i *Item) SafeKey() string {
+// EnvSafeKey returns an environment variable safe key
+func (i *Item) EnvSafeKey() string {
 	return strings.ToUpper(i.Key)
 }
 
-// SafeValue returns an environment variable safe value
-func (i *Item) SafeValue() string {
+// EnvSafeValue returns an environment variable safe value
+func (i *Item) EnvSafeValue() string {
 	v := i.Value
 	v = quotesRegexp.ReplaceAllString(v, `\"`)
 	return v
@@ -81,7 +81,7 @@ func (c *Collection) Len() int {
 func (c *Collection) AsMap() map[string]string {
 	out := make(map[string]string)
 	for _, i := range c.Items {
-		out[i.SafeKey()] = i.SafeValue()
+		out[i.EnvSafeKey()] = i.EnvSafeValue()
 	}
 	return out
 }
