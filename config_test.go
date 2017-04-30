@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -25,11 +24,6 @@ func TestSplitEnvArg(t *testing.T) {
 	if v := splitEnvArg(" charles  "); v[0] != "charles" {
 		t.Errorf("Expected charles got %s", v)
 	}
-}
-
-func TestNew(t *testing.T) {
-	config := NewConfig()
-	fmt.Println(config.sources, len(config.sources))
 }
 
 func TestGetSources(t *testing.T) {

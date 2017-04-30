@@ -33,15 +33,18 @@ func main() {
 	config := NewConfig()
 	config.SetSources(flagSet.Args(), os.Getenv("SNAGSBY_SOURCE"))
 
-	ch := make(chan *Collection, config.LenSources())
+	var jobs []chan *Collection
 	for _, source := range config.sources {
-		go func(s *url.URL) {
-			ch <- LoadSecretsFromSource(s)
-		}(source)
+		job := make(chan *Collection)
+		jobs = append(jobs, job)
+		go func(s *url.URL, c chan *Collection) {
+			job <- LoadItemsFromSource(s)
+		}(source, job)
 	}
 
-	for i := 0; i < config.LenSources(); i++ {
-		col := <-ch
+	var rendered []map[string]string
+	for _, result := range jobs {
+		col := <-result
 
 		if col.Error != nil {
 			// Print errors to stderr
@@ -56,6 +59,9 @@ func main() {
 			continue
 		}
 
-		col.Print()
+		rendered = append(rendered, col.AsMap())
 	}
+
+	all := merge(rendered)
+	fmt.Print(EnvFormat(all))
 }

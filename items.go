@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,8 +33,20 @@ func (i *Item) Export() string {
 	return fmt.Sprintf("export %s=\"%s\"", strings.ToUpper(i.Key), v)
 }
 
-// Collection is a collection of single secrets and the source. If there were
-// source processing errors they'll be saved in .Error
+// EnvSafeKey returns an environment variable safe key
+func (i *Item) EnvSafeKey() string {
+	return strings.ToUpper(i.Key)
+}
+
+// EnvSafeValue returns an environment variable safe value
+func (i *Item) EnvSafeValue() string {
+	v := i.Value
+	v = quotesRegexp.ReplaceAllString(v, `\"`)
+	return v
+}
+
+// Collection is a collection of single key value items and the source. If
+// there were source processing errors they'll be saved in .Error
 type Collection struct {
 	Items  map[string]*Item
 	Source string
@@ -51,7 +62,7 @@ func NewCollection() *Collection {
 
 // AppendItem will add an item to the internal Items map if the key
 // validates. If the key doesn't validate an error will be returned and no
-// secret will be written.
+// item will be written.
 func (c *Collection) AppendItem(key, val string) error {
 	if !keyRegexp.MatchString(key) {
 		return errors.New(key + " contains invalid characters")
@@ -61,38 +72,32 @@ func (c *Collection) AppendItem(key, val string) error {
 	return nil
 }
 
-// Len returns the number of secrets in the collection
+// Len returns the number of items in the collection
 func (c *Collection) Len() int {
 	return len(c.Items)
 }
 
-// Exports are all the exports
-func (c *Collection) Exports() string {
-	var buffer bytes.Buffer
-	for _, item := range c.Items {
-		buffer.WriteString(item.Export())
-		buffer.WriteString("\n")
+// AsMap represents the collection as a map[string]string
+func (c *Collection) AsMap() map[string]string {
+	out := make(map[string]string)
+	for _, i := range c.Items {
+		out[i.EnvSafeKey()] = i.EnvSafeValue()
 	}
-	return buffer.String()
+	return out
 }
 
-// Print prints the exports
-func (c *Collection) Print() {
-	fmt.Print(c.Exports())
-}
-
-// GetSecretString will return the value of a single secret by key
-func (c *Collection) GetSecretString(key string) (string, bool) {
-	secret, ok := c.Items[key]
+// GetItemString will return the value of a item by key
+func (c *Collection) GetItemString(key string) (string, bool) {
+	item, ok := c.Items[key]
 	if !ok {
 		return "", false
 	}
-	return secret.Value, true
+	return item.Value, true
 }
 
-// ReadSecretsFromReader will read in secrets from an io.Reader
-// This will read secrets into the internal Secrest map and set any errors
-func (c *Collection) ReadSecretsFromReader(r io.Reader) error {
+// ReadItemsFromReader will read in items from an io.Reader into the collection
+// Items map
+func (c *Collection) ReadItemsFromReader(r io.Reader) error {
 	var f map[string]interface{}
 	if err := json.NewDecoder(r).Decode(&f); err != nil {
 		c.Error = err
@@ -117,9 +122,9 @@ func (c *Collection) ReadSecretsFromReader(r io.Reader) error {
 	return nil
 }
 
-// LoadSecretsFromSource will write secrets from a source URL
+// LoadItemsFromSource will write items from a source URL
 // Currently assumes s3
-func LoadSecretsFromSource(source *url.URL) *Collection {
+func LoadItemsFromSource(source *url.URL) *Collection {
 	sess := session.New()
 	region := source.Query().Get("region")
 	config := aws.Config{}
@@ -141,6 +146,6 @@ func LoadSecretsFromSource(source *url.URL) *Collection {
 	}
 
 	defer result.Body.Close()
-	secrets.ReadSecretsFromReader(result.Body)
+	secrets.ReadItemsFromReader(result.Body)
 	return secrets
 }
