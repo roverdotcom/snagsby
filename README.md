@@ -14,7 +14,7 @@ Linux and OSX 64 bit binaries are available on Github
 
 ```bash
 curl -L \
-    https://github.com/roverdotcom/snagsby/releases/download/v0.1.4/snagsby-0.1.4.darwin-amd64.gz \
+    https://github.com/roverdotcom/snagsby/releases/download/v0.1.5/snagsby-0.1.5.darwin-amd64.gz \
     | gunzip -c > ./snagsby && chmod 755 ./snagsby
 ```
 
@@ -45,12 +45,12 @@ snagsby s3://my-bucket/config.json?region=us-west-2
 Would render:
 
 ```bash
-export PROCESSES="2"
-export MULTILINE_CONFIG="123\n456\n789"
 export API_KEY="abc123"
-export NO="0"
-export YES="1"
 export FLOAT_LIKE="7.777"
+export MULTILINE_CONFIG="123\n456\n789"
+export NO="0"
+export PROCESSES="2"
+export YES="1"
 ```
 
 You can supply sources in a comma delimited `SNAGSBY_SOURCE` environment variable:
@@ -83,7 +83,7 @@ exec "$@"
 You can configure AWS any way the golang sdk supports:
 https://github.com/aws/aws-sdk-go#configuring-credentials
 
-The preferred method when inside ec2 is to rely on the IAM role of the machine.
+The preferred method when inside ec2 is to rely instance profile IAM roles.
 
 You can configure the default region by setting the `AWS_REGION` environment
 variable. It's recommended you set the region on each source:
