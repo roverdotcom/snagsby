@@ -38,7 +38,7 @@ func main() {
 		job := make(chan *Collection)
 		jobs = append(jobs, job)
 		go func(s *url.URL, c chan *Collection) {
-			job <- LoadSecretsFromSource(s)
+			job <- LoadItemsFromSource(s)
 		}(source, job)
 	}
 

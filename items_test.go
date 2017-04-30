@@ -21,11 +21,11 @@ func TestCollection(t *testing.T) {
 		t.Fail()
 	}
 
-	if c, _ := c.GetSecretString("TEST"); c != "key" {
+	if c, _ := c.GetItemString("TEST"); c != "key" {
 		t.Fail()
 	}
 
-	if _, ok := c.GetSecretString("NO"); ok {
+	if _, ok := c.GetItemString("NO"); ok {
 		t.Fail()
 	}
 }
@@ -40,7 +40,7 @@ func TestAppendItem(t *testing.T) {
 
 	// Keys are upcased
 	c.AppendItem("up", "case")
-	if o, _ := c.GetSecretString("UP"); o != "case" {
+	if o, _ := c.GetItemString("UP"); o != "case" {
 		t.Fail()
 	}
 
@@ -60,29 +60,29 @@ func TestAppendItem(t *testing.T) {
 	}
 }
 
-func TestReadSecretsParseFloats(t *testing.T) {
+func TestReadItemsParseFloats(t *testing.T) {
 	c := NewCollection()
 	reader := bytes.NewReader([]byte(`
 	{
 		"number": 1.2
 	}
 	`))
-	c.ReadSecretsFromReader(reader)
-	if o, _ := c.GetSecretString("NUMBER"); o != "1.2" {
+	c.ReadItemsFromReader(reader)
+	if o, _ := c.GetItemString("NUMBER"); o != "1.2" {
 		t.Errorf("Looking for 1, got %s", o)
 	}
 }
 
 // This currently panics, can we have it not?
-func TestReadSecretsIncorrectJSON(t *testing.T) {
+func TestReadItemsIncorrectJSON(t *testing.T) {
 	c := NewCollection()
 	reader := bytes.NewReader([]byte(`["one", "two"]`))
-	if err := c.ReadSecretsFromReader(reader); err == nil {
+	if err := c.ReadItemsFromReader(reader); err == nil {
 		t.Errorf("We should return an error on unparsable JSON")
 	}
 }
 
-func TestReadSecretsParseBooleans(t *testing.T) {
+func TestReadItemsParseBooleans(t *testing.T) {
 	c := NewCollection()
 	reader := bytes.NewReader([]byte(`
 	{
@@ -90,37 +90,37 @@ func TestReadSecretsParseBooleans(t *testing.T) {
 		"yes": true
 	}
 	`))
-	c.ReadSecretsFromReader(reader)
-	if o, _ := c.GetSecretString("NO"); o != "0" {
+	c.ReadItemsFromReader(reader)
+	if o, _ := c.GetItemString("NO"); o != "0" {
 		t.Errorf("Looking for 0, got %s", o)
 	}
-	if o, _ := c.GetSecretString("YES"); o != "1" {
+	if o, _ := c.GetItemString("YES"); o != "1" {
 		t.Errorf("Looking for 1, got %s", o)
 	}
 }
 
-func TestReadSecretsParseStrings(t *testing.T) {
+func TestReadItemsParseStrings(t *testing.T) {
 	c := NewCollection()
 	reader := bytes.NewReader([]byte(`
 	{
 		"hello": "world"
 	}
 	`))
-	c.ReadSecretsFromReader(reader)
-	if o, _ := c.GetSecretString("HELLO"); o != "world" {
+	c.ReadItemsFromReader(reader)
+	if o, _ := c.GetItemString("HELLO"); o != "world" {
 		t.Errorf("Looking for HELLO, got %s", o)
 	}
 }
 
-func TestReadSecretsIgnoresKeysWithSpaces(t *testing.T) {
+func TestReadItemsIgnoresKeysWithSpaces(t *testing.T) {
 	c := NewCollection()
 	reader := bytes.NewReader([]byte(`
 	{
 		"hello again": "world"
 	}
 	`))
-	c.ReadSecretsFromReader(reader)
-	if _, ok := c.GetSecretString("hello again"); ok {
+	c.ReadItemsFromReader(reader)
+	if _, ok := c.GetItemString("hello again"); ok {
 		t.Errorf("Shouldn't have found hello again")
 	}
 }
