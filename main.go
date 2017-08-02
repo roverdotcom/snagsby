@@ -17,8 +17,7 @@ var (
 func main() {
 	flagSet := flag.NewFlagSet("snagsby", flag.ExitOnError)
 	flagSet.Usage = func() {
-		// TODO: actual usage
-		fmt.Fprintf(os.Stderr, "Usage of snagsby:\n")
+		fmt.Fprintf(os.Stderr, "Example usage: snagsby s3://my-bucket/my-config.json?region=us-west-2\n")
 		flagSet.PrintDefaults()
 	}
 	flagSet.BoolVar(&showVersion, "v", false, "print version string")
