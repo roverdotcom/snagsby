@@ -125,7 +125,9 @@ func (c *Collection) ReadItemsFromReader(r io.Reader) error {
 // LoadItemsFromSource will write items from a source URL
 // Currently assumes s3
 func LoadItemsFromSource(source *url.URL) *Collection {
-	sess := session.New()
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
 	region := source.Query().Get("region")
 	config := aws.Config{}
 	secrets := NewCollection()
