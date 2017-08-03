@@ -83,7 +83,11 @@ exec "$@"
 You can configure AWS any way the golang sdk supports:
 https://github.com/aws/aws-sdk-go#configuring-credentials
 
-The preferred method when inside ec2 is to rely instance profile IAM roles.
+Snagsby enables support for the shared configuration file (~/.aws/config) in
+the golang aws sdk.
+
+The preferred method when in ec2 is to rely on instance profiles. When running
+in aws ecs snagsby will use the task iam role.
 
 You can configure the default region by setting the `AWS_REGION` environment
 variable. It's recommended you set the region on each source:
