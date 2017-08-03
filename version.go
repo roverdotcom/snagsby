@@ -1,4 +1,4 @@
 package main
 
 // VERSION - snagsby version
-const VERSION = "0.1.5"
+const VERSION = "0.1.6"

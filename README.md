@@ -14,8 +14,8 @@ Linux and OSX 64 bit binaries are available on Github
 
 ```bash
 curl -L \
-    https://github.com/roverdotcom/snagsby/releases/download/v0.1.5/snagsby-0.1.5.darwin-amd64.tar.gz \
-    | tar zxf - ./snagsby
+    https://github.com/roverdotcom/snagsby/releases/download/v0.1.6/snagsby-0.1.6.darwin-amd64.gz \
+    | gunzip -c > ./snagsby && chmod 755 ./snagsby
 ```
 
 ## JSON Format
