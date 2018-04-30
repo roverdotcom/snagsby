@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"
 )
 
 // Key validation regexp
@@ -122,9 +123,50 @@ func (c *Collection) ReadItemsFromReader(r io.Reader) error {
 	return nil
 }
 
+// LoadItemsFromSecretsManager shim
+func LoadItemsFromSecretsManager(source *url.URL) *Collection {
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+	region := source.Query().Get("region")
+	config := aws.Config{}
+	if region != "" {
+		config.Region = aws.String(region)
+	}
+
+	versionStage := source.Query().Get("version-stage")
+	if versionStage == "" {
+		versionStage = "AWSCURRENT"
+	}
+
+	secretName := fmt.Sprintf("%s%s", source.Host, source.Path)
+	svc := secretsmanager.New(sess, &config)
+	input := &secretsmanager.GetSecretValueInput{
+		SecretId:     aws.String(secretName),
+		VersionStage: aws.String(versionStage),
+	}
+
+	secrets := NewCollection()
+	secrets.Source = source.String()
+
+	result, err := svc.GetSecretValue(input)
+	if err != nil {
+		secrets.Error = err
+		return secrets
+	}
+
+	secrets.ReadItemsFromReader(strings.NewReader(*result.SecretString))
+	return secrets
+}
+
 // LoadItemsFromSource will write items from a source URL
 // Currently assumes s3
 func LoadItemsFromSource(source *url.URL) *Collection {
+	// A hack until we implement a proper handler registry
+	if source.Scheme == "sm" {
+		return LoadItemsFromSecretsManager(source)
+	}
+
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))

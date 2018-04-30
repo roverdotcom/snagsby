@@ -14,6 +14,8 @@ var (
 	setFail     = false
 )
 
+var format string
+
 func main() {
 	flagSet := flag.NewFlagSet("snagsby", flag.ExitOnError)
 	flagSet.Usage = func() {
@@ -22,6 +24,8 @@ func main() {
 	}
 	flagSet.BoolVar(&showVersion, "v", false, "print version string")
 	flagSet.BoolVar(&setFail, "e", false, "fail on errors")
+	flagSet.StringVar(&format, "o", "env", "Output")
+	flagSet.StringVar(&format, "output", "env", "Output")
 	flagSet.Parse(os.Args[1:])
 
 	if showVersion {
@@ -62,5 +66,9 @@ func main() {
 	}
 
 	all := merge(rendered)
-	fmt.Print(EnvFormat(all))
+	if format == "env" {
+		fmt.Print(EnvFormat(all))
+	} else {
+		fmt.Print(JSONFormat(all))
+	}
 }
