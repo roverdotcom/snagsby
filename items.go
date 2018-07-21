@@ -132,16 +132,21 @@ func LoadItemsFromSecretsManager(source *url.URL) *Collection {
 		config.Region = aws.String(region)
 	}
 
-	versionStage := source.Query().Get("version-stage")
-	if versionStage == "" {
-		versionStage = "AWSCURRENT"
-	}
-
 	secretName := fmt.Sprintf("%s%s", source.Host, source.Path)
 	svc := secretsmanager.New(sess, &config)
 	input := &secretsmanager.GetSecretValueInput{
-		SecretId:     aws.String(secretName),
-		VersionStage: aws.String(versionStage),
+		SecretId: aws.String(secretName),
+	}
+
+	// Add version stage
+	versionStage := source.Query().Get("version-stage")
+	if versionStage != "" {
+		input.VersionStage = aws.String(versionStage)
+	}
+
+	versionID := source.Query().Get("version-id")
+	if versionID != "" {
+		input.VersionId = aws.String(versionID)
 	}
 
 	secrets := NewCollection()
