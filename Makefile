@@ -6,12 +6,12 @@ dist:
 	./dist.sh
 
 docker-dist:
-	docker pull golang:1.8
+	docker pull golang:1.10
 	docker run --rm \
 		-v $(PWD):/go/src/github.com/roverdotcom/snagsby \
 		-w /go/src/github.com/roverdotcom/snagsby \
-		golang:1.7 \
-		go get && make dist
+		golang:1.10 \
+		make dist
 
 run:
 	go install && snagsby

@@ -2,7 +2,7 @@
 
 set -e
 
-DIR=$(PWD)/dist
+DIR=$(pwd)/dist
 mkdir -p $DIR
 
 version=$(cat ./version.go | grep "const VERSION" | awk '{print $NF}' | sed 's/"//g')
