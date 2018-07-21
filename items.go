@@ -20,18 +20,16 @@ import (
 var keyRegexp = regexp.MustCompile(`^\w+$`)
 var quotesRegexp = regexp.MustCompile(`"`)
 
+type handlerFunc func(*url.URL) *Collection
+
+var handlers = map[string]handlerFunc{
+	"s3": LoadItemsFromS3,
+	"sm": LoadItemsFromSecretsManager,
+}
+
 // Item is a representation of a single config key and value
 type Item struct {
 	Key, Value string
-}
-
-// Export returns a string that can be evaluated by a shell to set key=value in
-// the environment
-func (i *Item) Export() string {
-	v := i.Value
-	v = quotesRegexp.ReplaceAllString(v, `\"`)
-
-	return fmt.Sprintf("export %s=\"%s\"", strings.ToUpper(i.Key), v)
 }
 
 // EnvSafeKey returns an environment variable safe key
@@ -159,14 +157,8 @@ func LoadItemsFromSecretsManager(source *url.URL) *Collection {
 	return secrets
 }
 
-// LoadItemsFromSource will write items from a source URL
-// Currently assumes s3
-func LoadItemsFromSource(source *url.URL) *Collection {
-	// A hack until we implement a proper handler registry
-	if source.Scheme == "sm" {
-		return LoadItemsFromSecretsManager(source)
-	}
-
+// LoadItemsFromS3 loads data from an s3 source
+func LoadItemsFromS3(source *url.URL) *Collection {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
@@ -192,4 +184,16 @@ func LoadItemsFromSource(source *url.URL) *Collection {
 	defer result.Body.Close()
 	secrets.ReadItemsFromReader(result.Body)
 	return secrets
+}
+
+// LoadItemsFromSource will find an appropriate handler and return a collection
+func LoadItemsFromSource(source *url.URL) *Collection {
+	handler, ok := handlers[source.Scheme]
+	if ok {
+		return handler(source)
+	}
+	col := NewCollection()
+	col.Source = source.String()
+	col.Error = fmt.Errorf("No handler found for %s", source.Scheme)
+	return col
 }

@@ -5,15 +5,6 @@ import (
 	"testing"
 )
 
-func TestQuoteEscaping(t *testing.T) {
-	i := Item{Key: "test", Value: `hi "123"`}
-	rendered := i.Export()
-	expected := `export TEST="hi \"123\""`
-	if rendered != expected {
-		t.Errorf("%s != %s", expected, rendered)
-	}
-}
-
 func TestCollection(t *testing.T) {
 	c := NewCollection()
 	c.AppendItem("test", "key")
@@ -122,13 +113,5 @@ func TestReadItemsIgnoresKeysWithSpaces(t *testing.T) {
 	c.ReadItemsFromReader(reader)
 	if _, ok := c.GetItemString("hello again"); ok {
 		t.Errorf("Shouldn't have found hello again")
-	}
-}
-
-func TestExportFormat(t *testing.T) {
-	i := Item{Key: "hello", Value: "world"}
-	expected := `export HELLO="world"`
-	if i.Export() != expected {
-		t.Errorf("Expected '%s' == '%s'", i.Export(), expected)
 	}
 }
