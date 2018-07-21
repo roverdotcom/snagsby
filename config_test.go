@@ -24,6 +24,17 @@ func TestSplitEnvArg(t *testing.T) {
 	if v := splitEnvArg(" charles  "); v[0] != "charles" {
 		t.Errorf("Expected charles got %s", v)
 	}
+
+	multiLine := splitEnvArg(`
+	 s3://charles/dickens |
+
+	    sm://oliver/twist
+	`)
+
+	if multiLine[0] != "s3://charles/dickers" &&
+		multiLine[1] != "sm://oliver/twist" {
+		t.Errorf("Error splitting with newlines %s", multiLine)
+	}
 }
 
 func TestGetSources(t *testing.T) {
