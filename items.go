@@ -53,7 +53,7 @@ type Collection struct {
 }
 
 // NewCollection initializes a collection
-func NewCollection() *Collection {
+func NewCollection(source string, err error) *Collection {
 	return &Collection{
 		Items: make(map[string]*Item),
 	}
@@ -149,8 +149,7 @@ func LoadItemsFromSecretsManager(source *url.URL) *Collection {
 		input.VersionId = aws.String(versionID)
 	}
 
-	secrets := NewCollection()
-	secrets.Source = source.String()
+	secrets := NewCollection(source.String(), nil)
 
 	result, err := svc.GetSecretValue(input)
 	if err != nil {
@@ -169,8 +168,7 @@ func LoadItemsFromS3(source *url.URL) *Collection {
 	}))
 	region := source.Query().Get("region")
 	config := aws.Config{}
-	secrets := NewCollection()
-	secrets.Source = source.String()
+	secrets := NewCollection(source.String(), nil)
 
 	if region != "" {
 		config.Region = aws.String(region)
@@ -197,8 +195,9 @@ func LoadItemsFromSource(source *url.URL) *Collection {
 	if ok {
 		return handler(source)
 	}
-	col := NewCollection()
-	col.Source = source.String()
-	col.Error = fmt.Errorf("No handler found for %s", source.Scheme)
+	col := NewCollection(
+		source.String(),
+		fmt.Errorf("No handler found for %s", source.Scheme),
+	)
 	return col
 }
