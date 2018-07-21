@@ -40,7 +40,7 @@ func TestEnvFormat(t *testing.T) {
 	in := map[string]string{
 		"ONE": "1",
 	}
-	out := EnvFormat(in)
+	out := EnvFormater(in)
 	expected := "export ONE=\"1\"\n"
 	if strings.Compare(out, expected) != 0 {
 		fmt.Println(out)
@@ -55,7 +55,7 @@ func TestJsonFormat(t *testing.T) {
 		"A": "1",
 		"Z": "10",
 	}
-	out := JSONFormat(in)
+	out := JSONFormater(in)
 	expected := `{"A":"1","B":"2","Z":"10"}`
 	if strings.Compare(out, expected) != 0 {
 		fmt.Println(out)

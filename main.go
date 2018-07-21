@@ -33,6 +33,13 @@ func main() {
 		return
 	}
 
+	// Make sure we were given a valid formatter
+	formatter, ok := formatters[format]
+	if !ok {
+		fmt.Fprintln(os.Stderr, "No formatter found")
+		os.Exit(2)
+	}
+
 	config := NewConfig()
 	config.SetSources(flagSet.Args(), os.Getenv("SNAGSBY_SOURCE"))
 
@@ -65,10 +72,8 @@ func main() {
 		rendered = append(rendered, col.AsMap())
 	}
 
+	// Merge together our rendered sources which are listed in the order they
+	// were specified.
 	all := merge(rendered)
-	if format == "env" {
-		fmt.Print(EnvFormat(all))
-	} else {
-		fmt.Print(JSONFormat(all))
-	}
+	fmt.Print(formatter(all))
 }
