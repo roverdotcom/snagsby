@@ -38,7 +38,7 @@ func main() {
 
 	var jobs []chan *Collection
 	for _, source := range config.sources {
-		job := make(chan *Collection)
+		job := make(chan *Collection, 1)
 		jobs = append(jobs, job)
 		go func(s *url.URL, c chan *Collection) {
 			job <- LoadItemsFromSource(s)
