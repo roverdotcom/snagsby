@@ -55,7 +55,9 @@ type Collection struct {
 // NewCollection initializes a collection
 func NewCollection(source string, err error) *Collection {
 	return &Collection{
-		Items: make(map[string]*Item),
+		Source: source,
+		Items:  make(map[string]*Item),
+		Error:  err,
 	}
 }
 
@@ -197,7 +199,7 @@ func LoadItemsFromSource(source *url.URL) *Collection {
 	}
 	col := NewCollection(
 		source.String(),
-		fmt.Errorf("No handler found for %s", source.Scheme),
+		fmt.Errorf("No handler found for %s", source.String()),
 	)
 	return col
 }
