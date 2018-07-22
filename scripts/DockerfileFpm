@@ -1,6 +1,7 @@
 FROM centos
 
-RUN yum -y install ruby-devel gcc make rpm-build rubygems \
+RUN yum -y install \
+    ruby-devel gcc make rpm-build rubygems \
     && gem install --no-ri --no-rdoc fpm
 
 WORKDIR /app
