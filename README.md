@@ -13,9 +13,8 @@ It can help with workflows like this one: https://blogs.aws.amazon.com/security/
 Linux and OSX 64 bit binaries are available on Github
 
 ```bash
-curl -L \
-    https://github.com/roverdotcom/snagsby/releases/download/v0.1.6/snagsby-0.1.6.darwin-amd64.gz \
-    | gunzip -c > ./snagsby && chmod 755 ./snagsby
+curl -L https://github.com/roverdotcom/snagsby/releases/download/v0.1.6/snagsby-0.1.6.linux-amd64.tar.gz \
+    | tar zxf - -C /usr/local/bin
 ```
 
 ## JSON Format
