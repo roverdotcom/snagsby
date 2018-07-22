@@ -123,7 +123,7 @@ func (c *Collection) ReadItemsFromReader(r io.Reader) error {
 	return nil
 }
 
-// LoadItemsFromSecretsManager shim
+// LoadItemsFromSecretsManager loads data from aws secrets manager
 func LoadItemsFromSecretsManager(source *url.URL) *Collection {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
