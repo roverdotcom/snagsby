@@ -58,7 +58,7 @@ func main() {
 
 		if col.Error != nil {
 			// Print errors to stderr
-			fmt.Fprintln(os.Stderr, "Error parsing:", col.Source)
+			fmt.Fprintln(os.Stderr, "Error processing snagsby source:", col.Source)
 			fmt.Fprintln(os.Stderr, col.Error)
 
 			// Bail if we're exiting on failure
