@@ -13,24 +13,23 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"
 )
 
 // Key validation regexp
 var keyRegexp = regexp.MustCompile(`^\w+$`)
 var quotesRegexp = regexp.MustCompile(`"`)
 
+type handlerFunc func(*url.URL) *Collection
+
+var handlers = map[string]handlerFunc{
+	"s3": LoadItemsFromS3,
+	"sm": LoadItemsFromSecretsManager,
+}
+
 // Item is a representation of a single config key and value
 type Item struct {
 	Key, Value string
-}
-
-// Export returns a string that can be evaluated by a shell to set key=value in
-// the environment
-func (i *Item) Export() string {
-	v := i.Value
-	v = quotesRegexp.ReplaceAllString(v, `\"`)
-
-	return fmt.Sprintf("export %s=\"%s\"", strings.ToUpper(i.Key), v)
 }
 
 // EnvSafeKey returns an environment variable safe key
@@ -54,9 +53,11 @@ type Collection struct {
 }
 
 // NewCollection initializes a collection
-func NewCollection() *Collection {
+func NewCollection(source string, err error) *Collection {
 	return &Collection{
-		Items: make(map[string]*Item),
+		Source: source,
+		Items:  make(map[string]*Item),
+		Error:  err,
 	}
 }
 
@@ -122,16 +123,54 @@ func (c *Collection) ReadItemsFromReader(r io.Reader) error {
 	return nil
 }
 
-// LoadItemsFromSource will write items from a source URL
-// Currently assumes s3
-func LoadItemsFromSource(source *url.URL) *Collection {
+// LoadItemsFromSecretsManager loads data from aws secrets manager
+func LoadItemsFromSecretsManager(source *url.URL) *Collection {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 	region := source.Query().Get("region")
 	config := aws.Config{}
-	secrets := NewCollection()
-	secrets.Source = source.String()
+	if region != "" {
+		config.Region = aws.String(region)
+	}
+
+	secretName := fmt.Sprintf("%s%s", source.Host, source.Path)
+	svc := secretsmanager.New(sess, &config)
+	input := &secretsmanager.GetSecretValueInput{
+		SecretId: aws.String(secretName),
+	}
+
+	// Add version stage
+	versionStage := source.Query().Get("version-stage")
+	if versionStage != "" {
+		input.VersionStage = aws.String(versionStage)
+	}
+
+	versionID := source.Query().Get("version-id")
+	if versionID != "" {
+		input.VersionId = aws.String(versionID)
+	}
+
+	secrets := NewCollection(source.String(), nil)
+
+	result, err := svc.GetSecretValue(input)
+	if err != nil {
+		secrets.Error = err
+		return secrets
+	}
+
+	secrets.ReadItemsFromReader(strings.NewReader(*result.SecretString))
+	return secrets
+}
+
+// LoadItemsFromS3 loads data from an s3 source
+func LoadItemsFromS3(source *url.URL) *Collection {
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+	region := source.Query().Get("region")
+	config := aws.Config{}
+	secrets := NewCollection(source.String(), nil)
 
 	if region != "" {
 		config.Region = aws.String(region)
@@ -150,4 +189,17 @@ func LoadItemsFromSource(source *url.URL) *Collection {
 	defer result.Body.Close()
 	secrets.ReadItemsFromReader(result.Body)
 	return secrets
+}
+
+// LoadItemsFromSource will find an appropriate handler and return a collection
+func LoadItemsFromSource(source *url.URL) *Collection {
+	handler, ok := handlers[source.Scheme]
+	if ok {
+		return handler(source)
+	}
+	col := NewCollection(
+		source.String(),
+		fmt.Errorf("No handler found for %s", source.String()),
+	)
+	return col
 }

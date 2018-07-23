@@ -7,6 +7,13 @@ import (
 	"sort"
 )
 
+type formatterFunc func(map[string]string) string
+
+var formatters = map[string]formatterFunc{
+	"env":  EnvFormater,
+	"json": JSONFormater,
+}
+
 func merge(i []map[string]string) map[string]string {
 	out := make(map[string]string)
 	for _, m := range i {
@@ -17,9 +24,9 @@ func merge(i []map[string]string) map[string]string {
 	return out
 }
 
-// EnvFormat returns a string to be evaluated by a shell for the setting of environment
+// EnvFormater returns a string to be evaluated by a shell for the setting of environment
 // variables. The variables will be ordered by key
-func EnvFormat(m map[string]string) string {
+func EnvFormater(m map[string]string) string {
 	var buffer bytes.Buffer
 	var keys []string
 	for k := range m {
@@ -35,8 +42,8 @@ func EnvFormat(m map[string]string) string {
 	return buffer.String()
 }
 
-// JSONFormat return a json representation of the map
-func JSONFormat(m map[string]string) string {
+// JSONFormater return a json representation of the map
+func JSONFormater(m map[string]string) string {
 	out, err := json.Marshal(m)
 	if err != nil {
 		return `{}`

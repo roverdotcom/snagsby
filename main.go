@@ -14,6 +14,8 @@ var (
 	setFail     = false
 )
 
+var format string
+
 func main() {
 	flagSet := flag.NewFlagSet("snagsby", flag.ExitOnError)
 	flagSet.Usage = func() {
@@ -22,11 +24,20 @@ func main() {
 	}
 	flagSet.BoolVar(&showVersion, "v", false, "print version string")
 	flagSet.BoolVar(&setFail, "e", false, "fail on errors")
+	flagSet.StringVar(&format, "o", "env", "Output")
+	flagSet.StringVar(&format, "output", "env", "Output")
 	flagSet.Parse(os.Args[1:])
 
 	if showVersion {
-		fmt.Printf("snagsby version %s (aws sdk: %s)\n", VERSION, aws.SDKVersion)
+		fmt.Printf("snagsby version %s (aws sdk: %s)\n", Version, aws.SDKVersion)
 		return
+	}
+
+	// Make sure we were given a valid formatter
+	formatter, ok := formatters[format]
+	if !ok {
+		fmt.Fprintln(os.Stderr, "No formatter found")
+		os.Exit(2)
 	}
 
 	config := NewConfig()
@@ -34,7 +45,7 @@ func main() {
 
 	var jobs []chan *Collection
 	for _, source := range config.sources {
-		job := make(chan *Collection)
+		job := make(chan *Collection, 1)
 		jobs = append(jobs, job)
 		go func(s *url.URL, c chan *Collection) {
 			job <- LoadItemsFromSource(s)
@@ -47,7 +58,7 @@ func main() {
 
 		if col.Error != nil {
 			// Print errors to stderr
-			fmt.Fprintln(os.Stderr, "Error parsing:", col.Source)
+			fmt.Fprintln(os.Stderr, "Error processing snagsby source:", col.Source)
 			fmt.Fprintln(os.Stderr, col.Error)
 
 			// Bail if we're exiting on failure
@@ -61,6 +72,8 @@ func main() {
 		rendered = append(rendered, col.AsMap())
 	}
 
+	// Merge together our rendered sources which are listed in the order they
+	// were specified.
 	all := merge(rendered)
-	fmt.Print(EnvFormat(all))
+	fmt.Print(formatter(all))
 }
