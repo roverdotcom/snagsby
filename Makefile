@@ -1,11 +1,16 @@
+VERSION := $(shell cat VERSION)
+
+
 .PHONY: clean
 clean:
 	rm -rf bin/
 	rm -rf dist/
 
+
 .PHONY: dist
 dist:
 	./scripts/dist.sh
+
 
 .PHONY: docker-dist
 docker-dist:
@@ -16,9 +21,16 @@ docker-dist:
 		golang:1.10 \
 		make dist
 
+
+.PHONY: install
+install:
+	go install -ldflags "-X main.Version=$(VERSION)"
+
+
 .PHONY: run
-run:
-	go install && snagsby
+run: install
+	@$(GOPATH)/bin/snagsby
+
 
 .PHONY: fpm
 fpm:
@@ -30,12 +42,9 @@ fpm:
 		./scripts/fpm.sh
 
 
-.PHONY: install
-install:
-	go install
-
 .PHONY: test
 test:
 	@go test -v $(shell go list ./... | grep -v vendor)
+
 
 .DEFAULT_GOAL := test

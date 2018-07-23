@@ -1,4 +1,4 @@
 package main
 
-// VERSION - snagsby version
-const VERSION = "0.3.0-rc.3"
+// Version indicates the built snagsby version
+var Version string

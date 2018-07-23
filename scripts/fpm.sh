@@ -2,7 +2,7 @@
 
 set -e
 
-version=$(cat /app/version.go | grep "const VERSION" | awk '{print $NF}' | sed 's/"//g')
+version=$(cat ./VERSION)
 
 package() {
     fpm \

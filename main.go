@@ -29,7 +29,7 @@ func main() {
 	flagSet.Parse(os.Args[1:])
 
 	if showVersion {
-		fmt.Printf("snagsby version %s (aws sdk: %s)\n", VERSION, aws.SDKVersion)
+		fmt.Printf("snagsby version %s (aws sdk: %s)\n", Version, aws.SDKVersion)
 		return
 	}
 
