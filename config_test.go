@@ -47,13 +47,26 @@ func TestGetSources(t *testing.T) {
 	sourcesEnv := "s3://bucket/one.json, s3://bucket/two.json"
 	config := NewConfig()
 
-	if _, err := config.SetSources(emptyArgs, emptyEnv); err == nil {
+	// Passing in no sources is fine
+	config.SetSources(emptyArgs, emptyEnv)
+	if config.LenSources() != 0 {
 		t.Errorf("Expected an error parsing empty args and env")
 	}
-	if o, _ := config.SetSources(sourcesArgs, ""); o[0].Host != "bucket" {
-		t.Errorf("Host is actually %s", o[0].Host)
+
+	if config.SetSources(sourcesArgs, ""); config.sources[0].Host != "bucket" {
+		t.Errorf("Host is actually %s", config.sources[0].Host)
 	}
-	if o, _ := config.SetSources(emptyArgs, sourcesEnv); o[1].Path != "/two.json" {
-		t.Errorf("Path is actually %s", o[1].Path)
+	if config.SetSources(emptyArgs, sourcesEnv); config.sources[1].Path != "/two.json" {
+		t.Errorf("Path is actually %s", config.sources[1].Path)
+	}
+
+	err := config.SetSources([]string{":"}, "")
+	if err == nil || config.LenSources() != 0 {
+		t.Errorf("Expected a parsing url for the : url")
+	}
+
+	err = config.SetSources([]string{}, `"sm://nicholas/nickleby, sm://esther/summerson`)
+	if err == nil || config.LenSources() != 0 {
+		t.Errorf("Expected a parsing url for the : url")
 	}
 }

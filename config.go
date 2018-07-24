@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"net/url"
 	"regexp"
 	"strings"
@@ -25,27 +24,32 @@ func splitEnvArg(envArg string) []string {
 
 // SetSources will set the internal sources slice from a list of strings or
 // from a single environment string
-func (c *Config) SetSources(args []string, env string) ([]*url.URL, error) {
-	var sources []string
-	var urls []*url.URL
+func (c *Config) SetSources(args []string, env string) error {
+	var rawSources []string
+	var sources []*url.URL
+
+	// Re-initialize
+	c.sources = sources
 
 	if len(args) == 0 && env == "" {
-		return urls, errors.New("No source provided")
+		return nil
 	}
 
 	if len(args) > 0 {
-		sources = args
+		rawSources = args
 	} else {
-		sources = splitEnvArg(env)
+		rawSources = splitEnvArg(env)
 	}
 
-	for _, source := range sources {
-		url, _ := url.Parse(source)
-		urls = append(urls, url)
+	for _, rawSource := range rawSources {
+		url, err := url.Parse(rawSource)
+		if err != nil {
+			return err
+		}
+		c.sources = append(c.sources, url)
 	}
 
-	c.sources = urls
-	return urls, nil
+	return nil
 }
 
 // LenSources is the number or sources

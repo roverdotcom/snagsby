@@ -41,7 +41,11 @@ func main() {
 	}
 
 	config := NewConfig()
-	config.SetSources(flagSet.Args(), os.Getenv("SNAGSBY_SOURCE"))
+	err := config.SetSources(flagSet.Args(), os.Getenv("SNAGSBY_SOURCE"))
+	if err != nil {
+		fmt.Printf("Error parsing sources: %s\n", err)
+		os.Exit(1)
+	}
 
 	var jobs []chan *Collection
 	for _, source := range config.sources {
