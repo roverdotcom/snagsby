@@ -64,4 +64,9 @@ func TestGetSources(t *testing.T) {
 	if err == nil || config.LenSources() != 0 {
 		t.Errorf("Expected a parsing url for the : url")
 	}
+
+	err = config.SetSources([]string{}, `"sm://nicholas/nickleby, sm://esther/summerson`)
+	if err == nil || config.LenSources() != 0 {
+		t.Errorf("Expected a parsing url for the : url")
+	}
 }
