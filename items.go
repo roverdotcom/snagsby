@@ -123,11 +123,23 @@ func (c *Collection) ReadItemsFromReader(r io.Reader) error {
 	return nil
 }
 
+func getAwsSession() (*session.Session, error) {
+	return session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	})
+}
+
 // LoadItemsFromSecretsManager loads data from aws secrets manager
 func LoadItemsFromSecretsManager(source *url.URL) *Collection {
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
+	secrets := NewCollection(source.String(), nil)
+	sess, sessionError := getAwsSession()
+
+	if sessionError != nil {
+		secrets.Error = sessionError
+		return secrets
+	}
+
+	// sess := session.Must(bsess, err)
 	region := source.Query().Get("region")
 	config := aws.Config{}
 	if region != "" {
@@ -151,8 +163,6 @@ func LoadItemsFromSecretsManager(source *url.URL) *Collection {
 		input.VersionId = aws.String(versionID)
 	}
 
-	secrets := NewCollection(source.String(), nil)
-
 	result, err := svc.GetSecretValue(input)
 	if err != nil {
 		secrets.Error = err
@@ -165,12 +175,17 @@ func LoadItemsFromSecretsManager(source *url.URL) *Collection {
 
 // LoadItemsFromS3 loads data from an s3 source
 func LoadItemsFromS3(source *url.URL) *Collection {
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
+	secrets := NewCollection(source.String(), nil)
+
+	sess, sessionError := getAwsSession()
+
+	if sessionError != nil {
+		secrets.Error = sessionError
+		return secrets
+	}
+
 	region := source.Query().Get("region")
 	config := aws.Config{}
-	secrets := NewCollection(source.String(), nil)
 
 	if region != "" {
 		config.Region = aws.String(region)
