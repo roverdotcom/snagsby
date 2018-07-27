@@ -1,4 +1,4 @@
-VERSION := $(shell cat VERSION)
+VERSION ?= $(shell cat VERSION)
 
 
 .PHONY: clean
