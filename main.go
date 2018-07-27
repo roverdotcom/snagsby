@@ -12,6 +12,7 @@ import (
 var (
 	showVersion = false
 	setFail     = false
+	showReport  = false
 )
 
 var format string
@@ -24,8 +25,10 @@ func main() {
 	}
 	flagSet.BoolVar(&showVersion, "v", false, "print version string")
 	flagSet.BoolVar(&setFail, "e", false, "fail on errors")
+	flagSet.BoolVar(&showReport, "report", false, "Show a report")
 	flagSet.StringVar(&format, "o", "env", "Output")
 	flagSet.StringVar(&format, "output", "env", "Output")
+
 	flagSet.Parse(os.Args[1:])
 
 	if showVersion {
@@ -57,6 +60,8 @@ func main() {
 	}
 
 	var rendered []map[string]string
+	report := Report{}
+
 	for _, result := range jobs {
 		col := <-result
 
@@ -74,6 +79,15 @@ func main() {
 		}
 
 		rendered = append(rendered, col.AsMap())
+
+		if showReport {
+			report.AppendCollection(col)
+		}
+	}
+
+	if showReport {
+		// Print the report to stderr if requested
+		fmt.Fprintf(os.Stderr, report.Generate())
 	}
 
 	// Merge together our rendered sources which are listed in the order they

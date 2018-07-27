@@ -22,6 +22,16 @@ docker-dist:
 		make dist
 
 
+.PHONY: docker-test
+docker-test:
+	docker pull golang:1.10
+	docker run --rm \
+		-v $(PWD):/go/src/github.com/roverdotcom/snagsby \
+		-w /go/src/github.com/roverdotcom/snagsby \
+		golang:1.10 \
+		make test
+
+
 .PHONY: install
 install:
 	go install -ldflags "-X main.Version=$(VERSION)"

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -84,6 +85,18 @@ func (c *Collection) AsMap() map[string]string {
 	for _, i := range c.Items {
 		out[i.EnvSafeKey()] = i.EnvSafeValue()
 	}
+	return out
+}
+
+// Keys returns the keys coming from this source
+func (c *Collection) Keys() []string {
+	out := make([]string, c.Len())
+	i := 0
+	for _, item := range c.Items {
+		out[i] = item.EnvSafeKey()
+		i++
+	}
+	sort.Strings(out)
 	return out
 }
 
