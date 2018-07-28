@@ -3,8 +3,8 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"sort"
 	"strings"
+	"text/tabwriter"
 )
 
 // Report is used to generate a report of what keys where loaded from where and
@@ -21,14 +21,19 @@ func (r *Report) AppendCollection(c *Collection) {
 // Generate returns a report string
 func (r *Report) Generate() string {
 	var out bytes.Buffer
+	tabWriter := tabwriter.NewWriter(&out, 0, 8, 0, '\t', 0)
 	keyMap := r.getKeyMap()
-	out.WriteString("Snagsby:\n")
-	for _, res := range r.Collections {
+
+	// Header Row
+	tabWriter.Write([]byte("Snagsby Keys\tSnagsby Source\n"))
+
+	for idx, res := range r.Collections {
+		sourceName := fmt.Sprintf("%d-%s", idx, res.Source)
 		var keys []string
 		for _, key := range res.Keys() {
 			var overrideIndicator string
 			if len(keyMap[key]) > 1 {
-				if keyMap[key][len(keyMap[key])-1] == res.Source {
+				if keyMap[key][len(keyMap[key])-1] == sourceName {
 					overrideIndicator = "+"
 				} else {
 					overrideIndicator = "-"
@@ -37,21 +42,22 @@ func (r *Report) Generate() string {
 			}
 			keys = append(keys, overrideIndicator+key)
 		}
-		sort.Strings(keys)
-		out.WriteString(fmt.Sprintf("\t%s: (%s)\n", res.Source, strings.Join(keys[:], ", ")))
+		fmt.Fprintln(tabWriter, fmt.Sprintf("%s\t%s", strings.Join(keys[:], ", "), res.Source))
 	}
+	tabWriter.Flush()
 	return out.String()
 }
 
 func (r *Report) getKeyMap() map[string][]string {
 	out := map[string][]string{}
-	for _, res := range r.Collections {
+	for idx, res := range r.Collections {
+		sourceName := fmt.Sprintf("%d-%s", idx, res.Source)
 		for _, key := range res.Keys() {
 			if _, ok := out[key]; !ok {
 				var s []string
 				out[key] = s
 			}
-			out[key] = append(out[key], res.Source)
+			out[key] = append(out[key], sourceName)
 		}
 	}
 	return out
