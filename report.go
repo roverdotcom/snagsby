@@ -7,6 +7,12 @@ import (
 	"text/tabwriter"
 )
 
+// SourceReport holds report information for each individual snagsby source
+type SourceReport struct {
+	Source string
+	Keys   []string
+}
+
 // Report is used to generate a report of what keys where loaded from where and
 // which ones overrode others.
 type Report struct {
@@ -22,15 +28,35 @@ func (r *Report) AppendCollection(c *Collection) {
 func (r *Report) Generate() string {
 	var out bytes.Buffer
 	tabWriter := tabwriter.NewWriter(&out, 0, 8, 0, '\t', 0)
-	keyMap := r.getKeyMap()
 
 	// Header Row
 	tabWriter.Write([]byte("Snagsby Keys\tSnagsby Source\n"))
 
+	sourceReports := r.getSourceReports()
+
+	for _, sourceReport := range sourceReports {
+		fmt.Fprintln(tabWriter, fmt.Sprintf(
+			"%s\t%s", strings.Join(sourceReport.Keys[:], ", "), sourceReport.Source))
+	}
+
+	tabWriter.Flush()
+	return out.String()
+}
+
+// getSourceReports returns a list of source reports
+func (r *Report) getSourceReports() []*SourceReport {
+	out := make([]*SourceReport, len(r.Collections))
+	keyMap := r.getKeyMap()
+
 	for idx, res := range r.Collections {
 		sourceName := fmt.Sprintf("%d-%s", idx, res.Source)
-		var keys []string
-		for _, key := range res.Keys() {
+		sourceReport := SourceReport{
+			Source: res.Source,
+			Keys:   make([]string, len(res.Keys())),
+		}
+		out[idx] = &sourceReport
+
+		for idx, key := range res.Keys() {
 			var overrideIndicator string
 			if len(keyMap[key]) > 1 {
 				if keyMap[key][len(keyMap[key])-1] == sourceName {
@@ -40,12 +66,11 @@ func (r *Report) Generate() string {
 				}
 
 			}
-			keys = append(keys, overrideIndicator+key)
+			sourceReport.Keys[idx] = overrideIndicator + key
 		}
-		fmt.Fprintln(tabWriter, fmt.Sprintf("%s\t%s", strings.Join(keys[:], ", "), res.Source))
 	}
-	tabWriter.Flush()
-	return out.String()
+
+	return out
 }
 
 func (r *Report) getKeyMap() map[string][]string {
