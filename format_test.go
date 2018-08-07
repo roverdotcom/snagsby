@@ -47,6 +47,15 @@ func TestEnvFormat(t *testing.T) {
 		fmt.Println(expected)
 		t.Errorf("Env is off.")
 	}
+
+	in = map[string]string{
+		"ESCAPE_TEST": `$HELLO "FRIEND" \12` + "`END",
+	}
+	out = EnvFormater(in)
+	expected = `export ESCAPE_TEST="\$HELLO \"FRIEND\" \\12` + "\\`END\"\n"
+	if strings.Compare(out, expected) != 0 {
+		t.Error(out, expected)
+	}
 }
 
 func TestJsonFormat(t *testing.T) {

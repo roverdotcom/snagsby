@@ -32,16 +32,9 @@ type Item struct {
 	Key, Value string
 }
 
-// EnvSafeKey returns an environment variable safe key
-func (i *Item) EnvSafeKey() string {
+// FormattedKey formats the key for snagsby
+func (i *Item) FormattedKey() string {
 	return strings.ToUpper(i.Key)
-}
-
-// EnvSafeValue returns an environment variable safe value
-func (i *Item) EnvSafeValue() string {
-	v := i.Value
-	v = quotesRegexp.ReplaceAllString(v, `\"`)
-	return v
 }
 
 // Collection is a collection of single key value items and the source. If
@@ -82,7 +75,7 @@ func (c *Collection) Len() int {
 func (c *Collection) AsMap() map[string]string {
 	out := make(map[string]string)
 	for _, i := range c.Items {
-		out[i.EnvSafeKey()] = i.EnvSafeValue()
+		out[i.FormattedKey()] = i.Value
 	}
 	return out
 }
