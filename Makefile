@@ -57,4 +57,14 @@ test:
 	@go test -v $(shell go list ./... | grep -v vendor)
 
 
+.PHONY: e2e
+e2e: dist
+	./e2e/e2e.sh
+
+
+.PHONY: e2e-quick
+e2e-quick:
+	./e2e/e2e.sh
+
+
 .DEFAULT_GOAL := test
