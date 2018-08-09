@@ -1,0 +1,10 @@
+steps:
+  - command: 'make docker-test'
+    label: ':docker: Test'
+
+  - wait
+
+  - command: 'make clean && make docker-dist && make fpm'
+    label: ':docker: BUILD'
+    artifact_paths:
+      - 'dist/*'
