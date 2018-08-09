@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 )
 
@@ -24,6 +25,11 @@ func merge(i []map[string]string) map[string]string {
 	return out
 }
 
+func envEscape(i string) string {
+	var envQuoteRegex = regexp.MustCompile(`(\\|"|\$|` + "`)")
+	return envQuoteRegex.ReplaceAllString(i, `\$1`)
+}
+
 // EnvFormater returns a string to be evaluated by a shell for the setting of environment
 // variables. The variables will be ordered by key
 func EnvFormater(m map[string]string) string {
@@ -35,7 +41,7 @@ func EnvFormater(m map[string]string) string {
 	// Sort the keys for predictable export order
 	sort.Strings(keys)
 	for _, k := range keys {
-		buffer.WriteString(fmt.Sprintf("export %s=\"%s\"", k, m[k]))
+		buffer.WriteString(fmt.Sprintf("export %s=\"%s\"", k, envEscape(m[k])))
 		buffer.WriteString("\n")
 	}
 

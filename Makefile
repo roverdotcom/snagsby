@@ -1,4 +1,4 @@
-VERSION := $(shell cat VERSION)
+VERSION ?= $(shell cat VERSION)
 
 
 .PHONY: clean
@@ -20,6 +20,16 @@ docker-dist:
 		-w /go/src/github.com/roverdotcom/snagsby \
 		golang:1.10 \
 		make dist
+
+
+.PHONY: docker-test
+docker-test:
+	docker pull golang:1.10
+	docker run --rm \
+		-v $(PWD):/go/src/github.com/roverdotcom/snagsby \
+		-w /go/src/github.com/roverdotcom/snagsby \
+		golang:1.10 \
+		make test
 
 
 .PHONY: install
