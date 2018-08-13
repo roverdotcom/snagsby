@@ -2,6 +2,16 @@ steps:
   - command: 'make docker-test'
     label: ':docker: Test'
 
+  - command: 'make e2e'
+    agents:
+      queue: dev
+    plugins:
+      docker:
+        image: 'golang:1.10'
+        workdir: '/go/src/github.com/roverdotcom/snagsby'
+        environment:
+        - "AWS_REGION=us-west-2"
+
   - wait
 
   - command: 'make clean && make docker-dist && make fpm'
