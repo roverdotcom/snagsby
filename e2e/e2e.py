@@ -11,6 +11,12 @@ class SnagsbyAcceptance(unittest.TestCase):
             expected,
         )
 
+    def test_starts_with_hash(self):
+        self.assertEqual(
+            os.environ['STARTS_WITH_HASH'],
+            '#hello?world',
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
