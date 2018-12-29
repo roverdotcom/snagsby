@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -50,6 +51,12 @@ func expandSM(source *url.URL) ([]*url.URL, error) {
 			}
 		}
 		return true
+	})
+	// Sort by secret name
+	sort.Slice(out, func(i, j int) bool {
+		one := out[i].Host + out[i].Path
+		two := out[j].Host + out[j].Path
+		return one < two
 	})
 	return out, nil
 }
