@@ -8,14 +8,6 @@ import (
 	"strings"
 )
 
-// svc := secretsmanager.New(sess, &config)
-// svc.ListSecretsPages(&secretsmanager.ListSecretsInput{}, func(page *secretsmanager.ListSecretsOutput, lastPage bool) bool {
-// 	for _, p := range page.SecretList {
-// 		fmt.Println(*p.Name)
-// 	}
-// 	return true
-// })
-
 var commaSplit = regexp.MustCompile(`[\s|,]+`)
 
 // Config is the main configuration object

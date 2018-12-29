@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 	"net/url"
-	"path/filepath"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
+	"github.com/minio/minio/pkg/wildcard"
 )
 
 // Default expander
@@ -41,12 +41,12 @@ func expandSM(source *url.URL) ([]*url.URL, error) {
 	svc := secretsmanager.New(sess, &config)
 	svc.ListSecretsPages(&secretsmanager.ListSecretsInput{}, func(page *secretsmanager.ListSecretsOutput, lastPage bool) bool {
 		for _, p := range page.SecretList {
-			isMatch, err := filepath.Match(secretName, *p.Name)
-			if err == nil && isMatch {
+			if wildcard.MatchSimple(secretName, *p.Name) {
 				url, err := url.Parse(fmt.Sprintf("sm://%s", *p.Name))
 				if err == nil {
 					out = append(out, url)
 				}
+				url.RawQuery = source.RawQuery
 			}
 		}
 		return true
