@@ -1,8 +1,26 @@
 import os
+import subprocess
+import json
 import unittest
 
 
-class SnagsbyAcceptance(unittest.TestCase):
+class SnagsbyAcceptanceTestCase(unittest.TestCase):
+    def run_snagsby(self, source):
+        return subprocess.run(
+            [
+                os.environ['SNAGSBY_BIN'],
+                '-o=json',
+
+            ] + source,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+    def get_json(self, source):
+        return json.loads(self.run_snagsby(source).stdout)
+
+
+class SnagsbyAcceptance(SnagsbyAcceptanceTestCase):
     def test_tricky_characters(self):
         # Note the trailing single quote
         expected = r'@^*309_!~``:*/\{}%()>$t' + "'"
@@ -16,6 +34,17 @@ class SnagsbyAcceptance(unittest.TestCase):
             os.environ['STARTS_WITH_HASH'],
             '#hello?world',
         )
+
+    def test_json_parsing(self):
+        out = self.get_json([os.environ['SNAGSBY_E2E_SOURCE']])
+        self.assertEqual(out['STARTS_WITH_HASH'], '#hello?world')
+
+    def test_splat_source(self):
+        out = self.get_json([
+            'sm://snagsby/splat-tests/*'
+        ])
+        self.assertEqual(out['ONE'], 'one')
+        self.assertEqual(out['TWO'], 'two')
 
 
 if __name__ == '__main__':

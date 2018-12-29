@@ -132,7 +132,6 @@ func LoadItemsFromSecretsManager(source *url.URL) *Collection {
 		return secrets
 	}
 
-	// sess := session.Must(bsess, err)
 	region := source.Query().Get("region")
 	config := aws.Config{}
 	if region != "" {

@@ -1,10 +1,20 @@
 package main
 
 import (
+	"fmt"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 )
+
+// svc := secretsmanager.New(sess, &config)
+// svc.ListSecretsPages(&secretsmanager.ListSecretsInput{}, func(page *secretsmanager.ListSecretsOutput, lastPage bool) bool {
+// 	for _, p := range page.SecretList {
+// 		fmt.Println(*p.Name)
+// 	}
+// 	return true
+// })
 
 var commaSplit = regexp.MustCompile(`[\s|,]+`)
 
@@ -46,7 +56,14 @@ func (c *Config) SetSources(args []string, env string) error {
 		if err != nil {
 			return err
 		}
-		c.sources = append(c.sources, url)
+		expanded, err := expand(url)
+		if err != nil {
+			fmt.Fprint(os.Stderr, err)
+		}
+		for _, expandedSource := range expanded {
+			c.sources = append(c.sources, expandedSource)
+		}
+
 	}
 
 	return nil

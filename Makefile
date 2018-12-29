@@ -63,8 +63,8 @@ e2e: dist
 
 
 .PHONY: e2e-quick
-e2e-quick:
-	./e2e/e2e.sh
+e2e-quick: install
+	SNAGSBY_BIN=$(GOPATH)/bin/snagsby ./e2e/e2e.sh
 
 
 .DEFAULT_GOAL := test
