@@ -6,18 +6,16 @@ import unittest
 
 class SnagsbyAcceptanceTestCase(unittest.TestCase):
     def run_snagsby(self, source):
-        return subprocess.run(
+        return subprocess.check_output(
             [
                 os.environ['SNAGSBY_BIN'],
                 '-o=json',
 
             ] + source,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
         )
 
     def get_json(self, source):
-        return json.loads(self.run_snagsby(source).stdout)
+        return json.loads(self.run_snagsby(source))
 
 
 class SnagsbyAcceptance(SnagsbyAcceptanceTestCase):
