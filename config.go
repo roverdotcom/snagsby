@@ -46,11 +46,11 @@ func (c *Config) SetSources(args []string, env string) error {
 		if err != nil {
 			return err
 		}
-		expanded, err := expand(url)
-		if err != nil {
+		expanded := expand(url)
+		if expanded.Error != nil {
 			return err
 		}
-		for _, expandedSource := range expanded {
+		for _, expandedSource := range expanded.Sources {
 			c.sources = append(c.sources, expandedSource)
 		}
 

@@ -16,6 +16,13 @@ var (
 
 var format string
 
+func buildSources() []*url.URL {
+	var out []*url.URL
+	u, _ := url.Parse("s3://hello/now")
+	out = append(out, u)
+	return out
+}
+
 func main() {
 	flagSet := flag.NewFlagSet("snagsby", flag.ExitOnError)
 	flagSet.Usage = func() {

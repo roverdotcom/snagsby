@@ -11,27 +11,33 @@ import (
 	"github.com/minio/minio/pkg/wildcard"
 )
 
+// ExpandResult will store the expanded sources and any errors to be used in a channel
+type ExpandResult struct {
+	Sources []*url.URL
+	Error   error
+}
+
 // Default expander
-func expand(source *url.URL) ([]*url.URL, error) {
+func expand(source *url.URL) *ExpandResult {
 	if source.Scheme == "sm" {
 		return expandSM(source)
 	}
-	return []*url.URL{source}, nil
+	return &ExpandResult{[]*url.URL{source}, nil}
 }
 
-func expandSM(source *url.URL) ([]*url.URL, error) {
+func expandSM(source *url.URL) *ExpandResult {
 	secretName := fmt.Sprintf("%s%s", source.Host, source.Path)
 
 	// If we're not splatting just return
 	if !strings.Contains(secretName, "*") {
-		return []*url.URL{source}, nil
+		return &ExpandResult{[]*url.URL{source}, nil}
 	}
 
 	out := []*url.URL{}
 	sess, sessionError := getAwsSession()
 
 	if sessionError != nil {
-		return out, sessionError
+		return &ExpandResult{out, sessionError}
 	}
 
 	region := source.Query().Get("region")
@@ -54,9 +60,7 @@ func expandSM(source *url.URL) ([]*url.URL, error) {
 	})
 	// Sort by secret name
 	sort.Slice(out, func(i, j int) bool {
-		one := out[i].Host + out[i].Path
-		two := out[j].Host + out[j].Path
-		return one < two
+		return out[i].Host+out[i].Path < out[j].Host+out[j].Path
 	})
-	return out, nil
+	return &ExpandResult{out, sessionError}
 }
