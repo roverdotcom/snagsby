@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 )
@@ -50,7 +48,7 @@ func (c *Config) SetSources(args []string, env string) error {
 		}
 		expanded, err := expand(url)
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			return err
 		}
 		for _, expandedSource := range expanded {
 			c.sources = append(c.sources, expandedSource)
