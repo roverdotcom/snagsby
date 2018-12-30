@@ -1,4 +1,5 @@
 VERSION ?= $(shell cat VERSION)
+GOLANG_DOCKER_IMAGE := golang:1.11
 
 
 .PHONY: clean
@@ -14,21 +15,21 @@ dist:
 
 .PHONY: docker-dist
 docker-dist:
-	docker pull golang:1.10
+	docker pull $(GOLANG_DOCKER_IMAGE)
 	docker run --rm \
 		-v $(PWD):/go/src/github.com/roverdotcom/snagsby \
 		-w /go/src/github.com/roverdotcom/snagsby \
-		golang:1.10 \
+		$(GOLANG_DOCKER_IMAGE) \
 		make dist
 
 
 .PHONY: docker-test
 docker-test:
-	docker pull golang:1.10
+	docker pull $(GOLANG_DOCKER_IMAGE)
 	docker run --rm \
 		-v $(PWD):/go/src/github.com/roverdotcom/snagsby \
 		-w /go/src/github.com/roverdotcom/snagsby \
-		golang:1.10 \
+		$(GOLANG_DOCKER_IMAGE) \
 		make test
 
 
