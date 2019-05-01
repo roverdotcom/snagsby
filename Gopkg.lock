@@ -2,7 +2,11 @@
 
 
 [[projects]]
+<<<<<<< HEAD
   digest = "1:2936715454e499dab0966a2f9a416eecb626e5b79143c5fbfa5cbe9fcca350c0"
+=======
+  digest = "1:80e88309c03cf96cf7664cc95f71df03bb0b9a483c2198c7a1ff30d69cbe1683"
+>>>>>>> 6b889ed... [ssm-tests] Add ssm tests
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -14,7 +18,10 @@
     "aws/credentials",
     "aws/credentials/ec2rolecreds",
     "aws/credentials/endpointcreds",
+<<<<<<< HEAD
     "aws/credentials/processcreds",
+=======
+>>>>>>> 6b889ed... [ssm-tests] Add ssm tests
     "aws/credentials/stscreds",
     "aws/csm",
     "aws/defaults",
@@ -23,8 +30,11 @@
     "aws/request",
     "aws/session",
     "aws/signer/v4",
+<<<<<<< HEAD
     "internal/ini",
     "internal/s3err",
+=======
+>>>>>>> 6b889ed... [ssm-tests] Add ssm tests
     "internal/sdkio",
     "internal/sdkrand",
     "internal/sdkuri",
@@ -44,6 +54,7 @@
     "service/sts",
   ]
   pruneopts = "UT"
+<<<<<<< HEAD
   revision = "2091105f8d54d87f8e99a84a37a5065bd5b3ab9c"
   version = "v1.19.21"
 
@@ -53,6 +64,24 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "c2b33e84"
+=======
+  revision = "bb991cd9350cbec2b1dd32552b136317f7e4cdc8"
+
+[[projects]]
+  digest = "1:f779e6a6b3a143d9fd6cbc8e1c3ddfbe42df2cbab0ecabe66669a609a56460b8"
+  name = "github.com/go-ini/ini"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "e7fea39b01aea8d5671f6858f0532f56e8bff3a5"
+  version = "v1.27.0"
+
+[[projects]]
+  digest = "1:e22af8c7518e1eab6f2eab2b7d7558927f816262586cd6ed9f349c97a6c285c4"
+  name = "github.com/jmespath/go-jmespath"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "0b12d6b5"
+>>>>>>> 6b889ed... [ssm-tests] Add ssm tests
 
 [solve-meta]
   analyzer-name = "dep"
