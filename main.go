@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"runtime"
 
 	"github.com/aws/aws-sdk-go/aws"
 )
@@ -29,7 +30,7 @@ func main() {
 	flagSet.Parse(os.Args[1:])
 
 	if showVersion {
-		fmt.Printf("snagsby version %s (aws sdk: %s)\n", Version, aws.SDKVersion)
+		fmt.Printf("snagsby version %s (aws sdk: %s golang: %s)\n", Version, aws.SDKVersion, runtime.Version())
 		return
 	}
 
