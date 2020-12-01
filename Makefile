@@ -1,5 +1,5 @@
 VERSION ?= $(shell cat VERSION)
-GOLANG_DOCKER_IMAGE ?= golang:1.12
+GOLANG_DOCKER_IMAGE ?= golang:1.15
 
 
 .PHONY: clean
