@@ -5,16 +5,18 @@ set -e
 dist_dir=$(pwd)/dist
 mkdir -p $dist_dir
 
-version=$(cat ./VERSION)
+version=$VERSION
 os=$(go env GOOS)
 arch=$(go env GOARCH)
+
+echo "Hello $GO_LDFLAGS"
 
 for os in linux darwin; do
     name="snagsby-$version.$os-$arch"
     path="$dist_dir/$name"
     echo "Building $name - $version"
     GOOS=$os GOARCH=$arch CGO_ENABLED=0 go build \
-        -ldflags "-X main.Version=$version" \
+        -ldflags "$GO_LDFLAGS" \
         -o $path
     gzip < $path > $path.gz
     cp $path $dist_dir/snagsby

@@ -1,4 +1,4 @@
-package main
+package formatters
 
 import (
 	"bytes"
@@ -10,12 +10,15 @@ import (
 
 type formatterFunc func(map[string]string) string
 
-var formatters = map[string]formatterFunc{
-	"env":  EnvFormater,
-	"json": JSONFormater,
+// Formatters is a map of available formatters
+var Formatters = map[string]formatterFunc{
+	"env":     EnvFormater,
+	"envfile": EnvFileFormater,
+	"json":    JSONFormater,
 }
 
-func merge(i []map[string]string) map[string]string {
+// Merge updates the first map with values from the second
+func Merge(i []map[string]string) map[string]string {
 	out := make(map[string]string)
 	for _, m := range i {
 		for k, v := range m {
@@ -42,6 +45,25 @@ func EnvFormater(m map[string]string) string {
 	sort.Strings(keys)
 	for _, k := range keys {
 		buffer.WriteString(fmt.Sprintf("export %s=\"%s\"", k, envEscape(m[k])))
+		buffer.WriteString("\n")
+	}
+
+	return buffer.String()
+}
+
+// EnvFileFormater is similar to EnvFormater without the leading export
+// declarations. This format can easily be piped to a file and loaded by a shell
+// or systems like docker-compose.
+func EnvFileFormater(m map[string]string) string {
+	var buffer bytes.Buffer
+	var keys []string
+	for k := range m {
+		keys = append(keys, k)
+	}
+	// Sort the keys for predictable export order
+	sort.Strings(keys)
+	for _, k := range keys {
+		buffer.WriteString(fmt.Sprintf("%s=\"%s\"", k, envEscape(m[k])))
 		buffer.WriteString("\n")
 	}
 

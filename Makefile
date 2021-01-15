@@ -1,11 +1,14 @@
 VERSION ?= $(shell cat VERSION)
-GOLANG_DOCKER_IMAGE ?= golang:1.15
-
+GOLANG_VERSION ?= 1.15.6
+GOLANG_DOCKER_IMAGE ?= golang:$(GOLANG_VERSION)
+GO_LDFLAGS := -X github.com/roverdotcom/snagsby/pkg.Version=$(VERSION)
+export
 
 .PHONY: clean
 clean:
 	rm -rf bin/
 	rm -rf dist/
+	rm -f ./snagsby
 
 
 .PHONY: dist
@@ -19,6 +22,7 @@ docker-dist:
 	docker run --rm \
 		-v $(PWD):/go/src/github.com/roverdotcom/snagsby \
 		-w /go/src/github.com/roverdotcom/snagsby \
+		-e VERSION=$(VERSION) \
 		$(GOLANG_DOCKER_IMAGE) \
 		make dist
 
@@ -29,13 +33,19 @@ docker-test:
 	docker run --rm \
 		-v $(PWD):/go/src/github.com/roverdotcom/snagsby \
 		-w /go/src/github.com/roverdotcom/snagsby \
+		-e VERSION=$(VERSION) \
 		$(GOLANG_DOCKER_IMAGE) \
 		make test
 
 
 .PHONY: install
 install:
-	go install -ldflags "-X main.Version=$(VERSION)"
+	CGO_ENABLED=0 go install -ldflags "$(GO_LDFLAGS)"
+
+
+.PHONY: build
+build:
+	CGO_ENABLED=0 go build -ldflags "$(GO_LDFLAGS)" -o snagsby
 
 
 .PHONY: run
@@ -49,6 +59,7 @@ fpm:
 	docker run --rm -it \
 		-v $(PWD):/app \
 		-w /app \
+		-e VERSION=$(VERSION) \
 		snagsby-fpm \
 		./scripts/fpm.sh
 

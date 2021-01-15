@@ -2,7 +2,7 @@
 
 set -euf -o pipefail
 
-SNAGSBY_E2E_SOURCE=${SNAGSBY_E2E_SOURCE:-sm://snagsby/acceptance}
+SNAGSBY_E2E_SOURCE=${SNAGSBY_E2E_SOURCE:-"sm://snagsby/acceptance sm:///snagsby/app/acceptance/*"}
 os_name=$(uname -s | tr '[:upper:]' '[:lower:]')
 
 # Evaluate snagsby

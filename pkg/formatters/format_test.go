@@ -1,4 +1,4 @@
-package main
+package formatters
 
 import (
 	"fmt"
@@ -30,7 +30,7 @@ func TestMerge(t *testing.T) {
 		"over":  "from two",
 		"new":   "new in three",
 	}
-	actual := merge(val)
+	actual := Merge(val)
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("Bad merge: %s != %s", actual, expected)
 	}
