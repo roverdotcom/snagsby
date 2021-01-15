@@ -10,7 +10,7 @@ steps:
         image: "golang:1.10"
         workdir: "/go/src/github.com/roverdotcom/snagsby"
         environment:
-          - "AWS_REGION=us-west-2"
+          - AWS_REGION
 
   - wait
 
