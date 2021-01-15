@@ -6,6 +6,7 @@ GOLANG_DOCKER_IMAGE ?= golang:1.15
 clean:
 	rm -rf bin/
 	rm -rf dist/
+	rm -f snagsby
 
 
 .PHONY: dist
@@ -17,6 +18,7 @@ dist:
 docker-dist:
 	docker pull $(GOLANG_DOCKER_IMAGE)
 	docker run --rm \
+		-e CGO_ENABLED=0 \
 		-v $(PWD):/go/src/github.com/roverdotcom/snagsby \
 		-w /go/src/github.com/roverdotcom/snagsby \
 		$(GOLANG_DOCKER_IMAGE) \
@@ -27,6 +29,7 @@ docker-dist:
 docker-test:
 	docker pull $(GOLANG_DOCKER_IMAGE)
 	docker run --rm \
+		-e CGO_ENABLED=0 \
 		-v $(PWD):/go/src/github.com/roverdotcom/snagsby \
 		-w /go/src/github.com/roverdotcom/snagsby \
 		$(GOLANG_DOCKER_IMAGE) \
@@ -36,6 +39,11 @@ docker-test:
 .PHONY: install
 install:
 	go install -ldflags "-X main.Version=$(VERSION)"
+
+
+.PHONY: build
+build:
+	CGO_ENABLED=0 go build -ldflags "-X main.Version=$(VERSION)" -o snagsby
 
 
 .PHONY: run
