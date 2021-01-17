@@ -1,20 +1,20 @@
 steps:
-  - command: 'make docker-test'
-    label: ':docker: Test'
+  - command: "make docker-test"
+    label: ":docker: Test"
 
-  - command: 'make e2e'
+  - command: "make e2e"
     agents:
-      queue: dev
+      queue: ${QUEUE}
     plugins:
       docker:
-        image: 'golang:1.10'
-        workdir: '/go/src/github.com/roverdotcom/snagsby'
+        image: "golang:1.10"
+        workdir: "/go/src/github.com/roverdotcom/snagsby"
         environment:
-        - "AWS_REGION=us-west-2"
+          - AWS_REGION
 
   - wait
 
-  - command: 'make clean && make docker-dist && make fpm'
-    label: ':docker: BUILD'
+  - command: "make clean && make docker-dist && make fpm"
+    label: ":docker: BUILD"
     artifact_paths:
-      - 'dist/*'
+      - "dist/*"
