@@ -9,8 +9,6 @@ version=$VERSION
 os=$(go env GOOS)
 arch=$(go env GOARCH)
 
-echo "Hello $GO_LDFLAGS"
-
 for os in linux darwin; do
     name="snagsby-$version.$os-$arch"
     path="$dist_dir/$name"
