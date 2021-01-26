@@ -2,7 +2,7 @@
 
 set -e
 
-version=$(cat ./VERSION)
+version=$VERSION
 
 package() {
     fpm \

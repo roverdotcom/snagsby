@@ -10,6 +10,10 @@ class SnagsbyAcceptance(unittest.TestCase):
             os.environ['TRICKY_CHARACTERS'],
             expected,
         )
+        self.assertEqual(
+            os.environ['RECURSIVE_TRICKY_CHARACTERS'],
+            expected,
+        )
 
     def test_starts_with_hash(self):
         self.assertEqual(

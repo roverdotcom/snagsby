@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"testing"
@@ -53,11 +53,11 @@ func TestGetSources(t *testing.T) {
 		t.Errorf("Expected an error parsing empty args and env")
 	}
 
-	if config.SetSources(sourcesArgs, ""); config.sources[0].Host != "bucket" {
-		t.Errorf("Host is actually %s", config.sources[0].Host)
+	if config.SetSources(sourcesArgs, ""); config.Sources[0].URL.Host != "bucket" {
+		t.Errorf("Host is actually %s", config.Sources[0].URL.Host)
 	}
-	if config.SetSources(emptyArgs, sourcesEnv); config.sources[1].Path != "/two.json" {
-		t.Errorf("Path is actually %s", config.sources[1].Path)
+	if config.SetSources(emptyArgs, sourcesEnv); config.Sources[1].URL.Path != "/two.json" {
+		t.Errorf("Path is actually %s", config.Sources[1].URL.Path)
 	}
 
 	err := config.SetSources([]string{":"}, "")

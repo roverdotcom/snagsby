@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"net/url"
@@ -8,9 +8,13 @@ import (
 
 var commaSplit = regexp.MustCompile(`[\s|,]+`)
 
-// Config is the main configuration object
-type Config struct {
-	sources []*url.URL
+// Source represents a single snagsby source URI
+type Source struct {
+	URL *url.URL
+}
+
+func splitEnvArg(envArg string) []string {
+	return commaSplit.Split(strings.TrimSpace(envArg), -1)
 }
 
 // NewConfig returns a new configuration
@@ -18,18 +22,19 @@ func NewConfig() *Config {
 	return &Config{}
 }
 
-func splitEnvArg(envArg string) []string {
-	return commaSplit.Split(strings.TrimSpace(envArg), -1)
+// Config is the main configuration object
+type Config struct {
+	Sources []*Source
 }
 
 // SetSources will set the internal sources slice from a list of strings or
 // from a single environment string
 func (c *Config) SetSources(args []string, env string) error {
 	var rawSources []string
-	var sources []*url.URL
+	var sources []*Source
 
 	// Re-initialize
-	c.sources = sources
+	c.Sources = sources
 
 	if len(args) == 0 && env == "" {
 		return nil
@@ -46,13 +51,18 @@ func (c *Config) SetSources(args []string, env string) error {
 		if err != nil {
 			return err
 		}
-		c.sources = append(c.sources, url)
+		c.Sources = append(c.Sources, &Source{url})
 	}
 
 	return nil
 }
 
+// GetSources returns the internal sources
+func (c *Config) GetSources() []*Source {
+	return c.Sources
+}
+
 // LenSources is the number or sources
 func (c *Config) LenSources() int {
-	return len(c.sources)
+	return len(c.Sources)
 }

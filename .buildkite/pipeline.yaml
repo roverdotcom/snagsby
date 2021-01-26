@@ -7,14 +7,15 @@ steps:
       queue: ${QUEUE}
     plugins:
       docker:
-        image: "golang:1.10"
+        image: "golang:1.15"
         workdir: "/go/src/github.com/roverdotcom/snagsby"
         environment:
           - AWS_REGION
 
   - wait
 
-  - command: "make clean && make docker-dist && make fpm"
+  - commands:
+      - make clean && make docker-dist && make fpm
     label: ":docker: BUILD"
     artifact_paths:
       - "dist/*"

@@ -3,11 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net/url"
 	"os"
 	"runtime"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/roverdotcom/snagsby/pkg"
+	"github.com/roverdotcom/snagsby/pkg/app"
+	"github.com/roverdotcom/snagsby/pkg/config"
+	"github.com/roverdotcom/snagsby/pkg/formatters"
 )
 
 var (
@@ -30,41 +33,33 @@ func main() {
 	flagSet.Parse(os.Args[1:])
 
 	if showVersion {
-		fmt.Printf("snagsby version %s (aws sdk: %s golang: %s)\n", Version, aws.SDKVersion, runtime.Version())
+		fmt.Printf("snagsby version %s (aws sdk: %s golang: %s)\n", pkg.Version, aws.SDKVersion, runtime.Version())
 		return
 	}
 
 	// Make sure we were given a valid formatter
-	formatter, ok := formatters[format]
+	formatter, ok := formatters.Formatters[format]
 	if !ok {
 		fmt.Fprintln(os.Stderr, "No formatter found")
 		os.Exit(2)
 	}
 
-	config := NewConfig()
-	err := config.SetSources(flagSet.Args(), os.Getenv("SNAGSBY_SOURCE"))
+	snagsbyConfig := config.NewConfig()
+	err := snagsbyConfig.SetSources(flagSet.Args(), os.Getenv("SNAGSBY_SOURCE"))
 	if err != nil {
 		fmt.Printf("Error parsing sources: %s\n", err)
 		os.Exit(1)
 	}
 
-	var jobs []chan *Collection
-	for _, source := range config.sources {
-		job := make(chan *Collection, 1)
-		jobs = append(jobs, job)
-		go func(s *url.URL, c chan *Collection) {
-			job <- LoadItemsFromSource(s)
-		}(source, job)
-	}
-
-	var rendered []map[string]string
-	for _, result := range jobs {
-		col := <-result
-
-		if col.Error != nil {
+	results := app.ResolveConfigSources(snagsbyConfig)
+	var resultsMap []map[string]string
+	for _, result := range results {
+		if result.HasErrors() {
 			// Print errors to stderr
-			fmt.Fprintln(os.Stderr, "Error processing snagsby source:", col.Source)
-			fmt.Fprintln(os.Stderr, col.Error)
+			fmt.Fprintln(os.Stderr, "Error processing snagsby source:", result.Source.URL.String())
+			for _, err := range result.Errors {
+				fmt.Fprintln(os.Stderr, err)
+			}
 
 			// Bail if we're exiting on failure
 			if setFail {
@@ -74,11 +69,11 @@ func main() {
 			continue
 		}
 
-		rendered = append(rendered, col.AsMap())
+		resultsMap = append(resultsMap, result.Items)
 	}
 
 	// Merge together our rendered sources which are listed in the order they
 	// were specified.
-	all := merge(rendered)
+	all := formatters.Merge(resultsMap)
 	fmt.Print(formatter(all))
 }
