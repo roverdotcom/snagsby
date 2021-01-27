@@ -54,6 +54,15 @@ func (r *Result) HasErrors() bool {
 	return len(r.Errors) > 0
 }
 
+// ItemKeys returns the item key names
+func (r *Result) ItemKeys() []string {
+	keys := make([]string, 0, len(r.Items))
+	for k := range r.Items {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 // ResolveSource will resolve a config.Source to a Result object
 func ResolveSource(source *config.Source) *Result {
 	sourceURL := source.URL
