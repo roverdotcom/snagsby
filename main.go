@@ -30,7 +30,7 @@ func main() {
 	}
 	flagSet.BoolVar(&showVersion, "v", false, "print version string")
 	flagSet.BoolVar(&setFail, "e", false, "fail on errors")
-	flagSet.BoolVar(&showSummary, "summary", false, "Show summary")
+	flagSet.BoolVar(&showSummary, "show-summary", false, "Show summary")
 	flagSet.StringVar(&format, "o", "env", "Output")
 	flagSet.StringVar(&format, "output", "env", "Output")
 	flagSet.Parse(os.Args[1:])
