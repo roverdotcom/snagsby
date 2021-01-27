@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/roverdotcom/snagsby/pkg"
@@ -16,6 +17,7 @@ import (
 var (
 	showVersion = false
 	setFail     = false
+	showSummary = false
 )
 
 var format string
@@ -28,6 +30,7 @@ func main() {
 	}
 	flagSet.BoolVar(&showVersion, "v", false, "print version string")
 	flagSet.BoolVar(&setFail, "e", false, "fail on errors")
+	flagSet.BoolVar(&showSummary, "show-summary", false, "Show summary")
 	flagSet.StringVar(&format, "o", "env", "Output")
 	flagSet.StringVar(&format, "output", "env", "Output")
 	flagSet.Parse(os.Args[1:])
@@ -67,6 +70,10 @@ func main() {
 			}
 
 			continue
+		}
+
+		if showSummary {
+			fmt.Fprintf(os.Stderr, "%s (%d) => (%s)\n", result.Source.URL.String(), result.LenItems(), strings.Join(result.ItemKeys(), ", "))
 		}
 
 		resultsMap = append(resultsMap, result.Items)
