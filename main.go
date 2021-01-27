@@ -73,7 +73,7 @@ func main() {
 		}
 
 		if showSummary {
-			fmt.Fprintf(os.Stderr, "%s => (%s)\n", result.Source.URL.String(), strings.Join(result.ItemKeys(), ", "))
+			fmt.Fprintf(os.Stderr, "%s (%d) => (%s)\n", result.Source.URL.String(), result.LenItems(), strings.Join(result.ItemKeys(), ", "))
 		}
 
 		resultsMap = append(resultsMap, result.Items)

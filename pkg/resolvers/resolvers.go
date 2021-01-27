@@ -63,6 +63,11 @@ func (r *Result) ItemKeys() []string {
 	return keys
 }
 
+// LenItems returns the number of Items stored
+func (r *Result) LenItems() int {
+	return len(r.Items)
+}
+
 // ResolveSource will resolve a config.Source to a Result object
 func ResolveSource(source *config.Source) *Result {
 	sourceURL := source.URL
