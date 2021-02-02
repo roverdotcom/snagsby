@@ -9,6 +9,8 @@ RUN /go/src/github.com/roverdotcom/snagsby/snagsby -v
 
 FROM alpine:3
 WORKDIR /app/
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache \
+    ca-certificates \
+    bash
 COPY --from=build /go/src/github.com/roverdotcom/snagsby/snagsby /app/snagsby
 ENTRYPOINT [ "/app/snagsby" ]
