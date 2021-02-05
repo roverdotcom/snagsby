@@ -79,4 +79,10 @@ e2e-quick:
 	./e2e/e2e.sh
 
 
+.PHONY: docker-build-images
+docker-build-images:
+	docker build --pull -t snagsby:v$(VERSION) .
+	docker build --pull -t snagsby:v$(VERSION)-dev --target dev .
+
+
 .DEFAULT_GOAL := test
