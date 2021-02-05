@@ -7,10 +7,19 @@ RUN make build
 RUN /go/src/github.com/roverdotcom/snagsby/snagsby -v
 
 
-FROM alpine:3
+# Image with more tools installed and no entrypoint
+FROM alpine:3 as dev
 WORKDIR /app/
 RUN apk add --no-cache \
     ca-certificates \
-    bash
+    bash \
+    python3
+COPY --from=build /go/src/github.com/roverdotcom/snagsby/snagsby /app/snagsby
+
+
+FROM alpine:3
+WORKDIR /app/
+RUN apk add --no-cache \
+    ca-certificates
 COPY --from=build /go/src/github.com/roverdotcom/snagsby/snagsby /app/snagsby
 ENTRYPOINT [ "/app/snagsby" ]
