@@ -14,7 +14,7 @@ import (
 	"github.com/roverdotcom/snagsby/pkg/config"
 )
 
-var smConcurrency int
+var smConcurrency int = 5
 
 func init() {
 	// Pull concurrency settings
@@ -101,7 +101,7 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 			},
 		},
 	}
-	out := map[string]string{}
+
 	secretKeys := []*string{}
 	err := svc.ListSecretsPages(params,
 		func(page *secretsmanager.ListSecretsOutput, lastPage bool) bool {
@@ -147,7 +147,6 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 		}
 	}
 
-	result.AppendItems(out)
 	return result
 }
 
