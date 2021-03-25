@@ -84,7 +84,9 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 	}
 
 	region := sourceURL.Query().Get("region")
-	config := aws.Config{}
+	config := aws.Config{
+		MaxRetries: aws.Int(10),
+	}
 	if region != "" {
 		config.Region = aws.String(region)
 	}
@@ -101,7 +103,6 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 			},
 		},
 	}
-	out := map[string]string{}
 	secretKeys := []*string{}
 	err := svc.ListSecretsPages(params,
 		func(page *secretsmanager.ListSecretsOutput, lastPage bool) bool {
@@ -147,7 +148,6 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 		}
 	}
 
-	result.AppendItems(out)
 	return result
 }
 
