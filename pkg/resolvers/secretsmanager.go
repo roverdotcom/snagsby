@@ -11,6 +11,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 	"github.com/roverdotcom/snagsby/pkg/config"
 )
 
@@ -36,7 +37,7 @@ type smMessage struct {
 	IsRecursive bool
 }
 
-func smWorker(jobs <-chan *smMessage, results chan<- *smMessage, svc *secretsmanager.SecretsManager) {
+func smWorker(jobs <-chan *smMessage, results chan<- *smMessage, svc *secretsmanager.Client) {
 	for job := range jobs {
 		sourceURL := job.Source.URL
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -52,7 +53,7 @@ func smWorker(jobs <-chan *smMessage, results chan<- *smMessage, svc *secretsman
 		if versionID != "" {
 			input.VersionId = aws.String(versionID)
 		}
-		getSecret, err := svc.GetSecretValueWithContext(ctx, input)
+		getSecret, err := svc.GetSecretValue(ctx, input)
 		if err != nil {
 			job.Error = err
 		} else {
@@ -93,26 +94,27 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 
 	// List secrets that begin with our prefix
 	params := &secretsmanager.ListSecretsInput{
-		Filters: []*secretsmanager.Filter{
+		Filters: []types.Filter{
 			{
-				Key: aws.String("name"),
-				Values: []*string{
-					aws.String(prefix),
+				Key: "name",
+				Values: []string{
+					prefix,
 				},
 			},
 		},
 	}
 	secretKeys := []*string{}
-	err = svc.ListSecretsPages(params,
-		func(page *secretsmanager.ListSecretsOutput, lastPage bool) bool {
-			for _, secret := range page.SecretList {
-				secretKeys = append(secretKeys, secret.Name)
-			}
-			return true
-		})
-	if err != nil {
-		result.AppendError(err)
-		return result
+	paginator := secretsmanager.NewListSecretsPaginator(svc, params)
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(context.TODO())
+		if err != nil {
+			result.AppendError(err)
+			return result
+		}
+		for _, secret := range output.SecretList {
+			secretKeys = append(secretKeys, secret.Name)
+		}
+
 	}
 
 	jobs := make(chan *smMessage, len(secretKeys))
@@ -180,7 +182,7 @@ func (s *SecretsManagerResolver) resolveSingle(source *config.Source) *Result {
 	if versionID != "" {
 		input.VersionId = aws.String(versionID)
 	}
-	res, err := svc.GetSecretValue(input)
+	res, err := svc.GetSecretValue(context.TODO(), input)
 	if err != nil {
 		result.AppendError(err)
 		return result
