@@ -76,6 +76,8 @@ func ResolveSource(source *config.Source) *Result {
 		s = &SecretsManagerResolver{}
 	} else if sourceURL.Scheme == "s3" {
 		s = &S3ManagerResolver{}
+	} else if sourceURL.Scheme == "manifest" {
+		s = &ManifestResolver{}
 	} else {
 		return &Result{Source: source, Errors: []error{fmt.Errorf("No resolver found for scheme %s", sourceURL.Scheme)}}
 	}

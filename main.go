@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/roverdotcom/snagsby/pkg"
 	"github.com/roverdotcom/snagsby/pkg/app"
 	"github.com/roverdotcom/snagsby/pkg/config"
