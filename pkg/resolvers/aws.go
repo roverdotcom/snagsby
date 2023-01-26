@@ -11,7 +11,9 @@ import (
 )
 
 func getAwsConfig() (aws.Config, error) {
-	return config.LoadDefaultConfig(context.TODO())
+	// https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/logging/
+	// return config.LoadDefaultConfig(context.TODO(), config.WithClientLogMode(aws.LogRetries|aws.LogRequest))
+	return config.LoadDefaultConfig(context.TODO(), config.WithClientLogMode(aws.LogRetries))
 }
 
 func readJSONString(input string) (map[string]string, error) {
