@@ -1,22 +1,17 @@
 package resolvers
 
 import (
+	"context"
 	"encoding/json"
 	"strconv"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 )
 
-func getAwsSession() (*session.Session, error) {
-	cfg := aws.NewConfig()
-	cfg.WithLogLevel(aws.LogDebugWithRequestRetries)
-
-	return session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-		Config:            *cfg,
-	})
+func getAwsConfig() (aws.Config, error) {
+	return config.LoadDefaultConfig(context.TODO())
 }
 
 func readJSONString(input string) (map[string]string, error) {

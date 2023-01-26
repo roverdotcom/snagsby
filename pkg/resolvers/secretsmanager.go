@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/roverdotcom/snagsby/pkg/config"
 )
 
@@ -76,21 +76,20 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 	result := &Result{Source: source}
 	sourceURL := source.URL
 	prefix := strings.TrimSuffix(fmt.Sprintf("%s%s", sourceURL.Host, sourceURL.Path), "*")
-	sess, sessionError := getAwsSession()
+	cfg, err := getAwsConfig()
 
-	if sessionError != nil {
-		result.AppendError(sessionError)
+	if err != nil {
+		result.AppendError(err)
 		return result
 	}
 
+	cfg.RetryMaxAttempts = 10
+
 	region := sourceURL.Query().Get("region")
-	config := aws.Config{
-		MaxRetries: aws.Int(10),
-	}
 	if region != "" {
-		config.Region = aws.String(region)
+		cfg.Region = region
 	}
-	svc := secretsmanager.New(sess, &config)
+	svc := secretsmanager.NewFromConfig(cfg)
 
 	// List secrets that begin with our prefix
 	params := &secretsmanager.ListSecretsInput{
@@ -104,7 +103,7 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 		},
 	}
 	secretKeys := []*string{}
-	err := svc.ListSecretsPages(params,
+	err = svc.ListSecretsPages(params,
 		func(page *secretsmanager.ListSecretsOutput, lastPage bool) bool {
 			for _, secret := range page.SecretList {
 				secretKeys = append(secretKeys, secret.Name)
@@ -155,19 +154,18 @@ func (s *SecretsManagerResolver) resolveSingle(source *config.Source) *Result {
 	result := &Result{Source: source}
 	sourceURL := source.URL
 
-	sess, sessionError := getAwsSession()
+	cfg, err := getAwsConfig()
 
-	if sessionError != nil {
-		result.AppendError(sessionError)
+	if err != nil {
+		result.AppendError(err)
 		return result
 	}
 
 	region := sourceURL.Query().Get("region")
-	config := aws.Config{}
 	if region != "" {
-		config.Region = aws.String(region)
+		cfg.Region = region
 	}
-	svc := secretsmanager.New(sess, &config)
+	svc := secretsmanager.NewFromConfig(cfg)
 
 	secretName := strings.Join([]string{sourceURL.Host, sourceURL.Path}, "")
 	input := &secretsmanager.GetSecretValueInput{
