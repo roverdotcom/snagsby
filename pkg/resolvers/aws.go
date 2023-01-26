@@ -5,12 +5,17 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 )
 
 func getAwsSession() (*session.Session, error) {
+	cfg := aws.NewConfig()
+	cfg.WithLogLevel(aws.LogDebugWithRequestRetries)
+
 	return session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
+		Config:            *cfg,
 	})
 }
 
