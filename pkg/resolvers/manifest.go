@@ -50,14 +50,6 @@ func getSecretValue(svc *secretsmanager.Client, manifestItem *ManifestItem) (str
 	return *getSecret.SecretString, nil
 }
 
-// func resolveSecret(svc *secretsmanager.Client, manifestItem *ManifestItem, resultChan chan<- *manifestResult) {
-// 	result := &manifestResult{Item: manifestItem}
-// 	value, err := getSecretValue(svc, manifestItem)
-// 	result.Error = err
-// 	result.Value = value
-// 	resultChan <- result
-// }
-
 func resolveManifestItems(manifestItems *ManifestItems, result *Result) {
 	cfg, err := getAwsConfig(awsConfig.WithRetryer(func() aws.Retryer {
 		return retry.AddWithMaxAttempts(retry.NewStandard(), 10)
