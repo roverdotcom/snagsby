@@ -2,9 +2,10 @@ package resolvers
 
 import (
 	"bytes"
+	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/roverdotcom/snagsby/pkg/config"
 )
 
@@ -16,21 +17,20 @@ func (s *S3ManagerResolver) Resolve(source *config.Source) *Result {
 	result := &Result{Source: source}
 	sourceURL := source.URL
 
-	sess, sessionError := getAwsSession()
+	cfg, err := getAwsConfig()
 
-	if sessionError != nil {
-		result.AppendError(sessionError)
+	if err != nil {
+		result.AppendError(err)
 		return result
 	}
 
 	region := sourceURL.Query().Get("region")
-	config := aws.Config{}
 
 	if region != "" {
-		config.Region = aws.String(region)
+		cfg.Region = region
 	}
-	svc := s3.New(sess, &config)
-	res, s3err := svc.GetObject(&s3.GetObjectInput{
+	svc := s3.NewFromConfig(cfg)
+	res, s3err := svc.GetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String(sourceURL.Host),
 		Key:    aws.String(sourceURL.Path),
 	})

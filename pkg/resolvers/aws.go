@@ -1,17 +1,23 @@
 package resolvers
 
 import (
+	"context"
 	"encoding/json"
 	"strconv"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	snagsbyConfig "github.com/roverdotcom/snagsby/pkg/config"
 )
 
-func getAwsSession() (*session.Session, error) {
-	return session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	})
+func getAwsConfig(optFns ...func(*config.LoadOptions) error) (aws.Config, error) {
+	// If the SNAGSBY_LOG_AWS_RETRIES environment variable is truthy
+	// we will log retries
+	if snagsbyConfig.EnvBool("SNAGSBY_LOG_AWS_RETRIES") {
+		optFns = append(optFns, config.WithClientLogMode(aws.LogRetries))
+	}
+	return config.LoadDefaultConfig(context.TODO(), optFns...)
 }
 
 func readJSONString(input string) (map[string]string, error) {
