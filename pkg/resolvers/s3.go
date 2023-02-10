@@ -3,6 +3,7 @@ package resolvers
 import (
 	"bytes"
 	"context"
+	"regexp"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -11,6 +12,12 @@ import (
 
 // S3ManagerResolver handles s3 resolution
 type S3ManagerResolver struct{}
+
+func (s *S3ManagerResolver) SanitizeKey(key string) string {
+	// Strip only the leading slash
+	m := regexp.MustCompile(`^/`)
+	return m.ReplaceAllString(key, "")
+}
 
 // Resolve returns results
 func (s *S3ManagerResolver) Resolve(source *config.Source) *Result {
@@ -32,7 +39,7 @@ func (s *S3ManagerResolver) Resolve(source *config.Source) *Result {
 	svc := s3.NewFromConfig(cfg)
 	res, s3err := svc.GetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String(sourceURL.Host),
-		Key:    aws.String(sourceURL.Path),
+		Key:    aws.String(s.SanitizeKey(sourceURL.Path)),
 	})
 
 	if s3err != nil {
