@@ -1,5 +1,5 @@
 ARG GOLANG_VERSION
-FROM golang:${GOLANG_VERSION:-1.15.6} as build
+FROM 290268990387.dkr.ecr.us-west-2.amazonaws.com/ecr-public/docker/library/golang:${GOLANG_VERSION:-1.15.6} as build
 ENV CGO_ENABLED=0
 WORKDIR /go/src/github.com/roverdotcom/snagsby
 COPY . /go/src/github.com/roverdotcom/snagsby
@@ -8,7 +8,7 @@ RUN /go/src/github.com/roverdotcom/snagsby/snagsby -v
 
 
 # Image with more tools installed and no entrypoint
-FROM alpine:3 as dev
+FROM 290268990387.dkr.ecr.us-west-2.amazonaws.com/ecr-public/docker/library/alpine:3 as dev
 WORKDIR /app/
 RUN apk add --no-cache \
     ca-certificates \
@@ -17,7 +17,7 @@ RUN apk add --no-cache \
 COPY --from=build /go/src/github.com/roverdotcom/snagsby/snagsby /app/snagsby
 
 
-FROM alpine:3
+FROM 290268990387.dkr.ecr.us-west-2.amazonaws.com/ecr-public/docker/library/alpine:3
 WORKDIR /app/
 RUN apk add --no-cache \
     ca-certificates
