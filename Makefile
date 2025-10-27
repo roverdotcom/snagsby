@@ -30,12 +30,12 @@ docker-dist:
 .PHONY: docker-test
 docker-test:
 	docker pull $(GOLANG_DOCKER_IMAGE)
-	docker run --rm \
+	docker run --rm -it \
 		-v $(PWD):/go/src/github.com/roverdotcom/snagsby \
 		-w /go/src/github.com/roverdotcom/snagsby \
 		-e VERSION=$(VERSION) \
 		$(GOLANG_DOCKER_IMAGE) \
-		make test
+		bash
 
 
 .PHONY: install
