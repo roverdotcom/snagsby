@@ -2,11 +2,11 @@
 
 ## Project Overview
 
-**Snagsby** is a Go-based command-line tool that reads JSON configuration from AWS S3 buckets or AWS Secrets Manager and outputs environment variable exports suitable for shell evaluation. It's commonly used in Docker container workflows to inject configuration and secrets from AWS services into containers at runtime.
+**Snagsby** is a Go-based command-line tool that reads configuration from AWS S3 buckets or AWS Secrets Manager and outputs environment variable exports suitable for shell evaluation. It's commonly used in Docker container workflows to inject configuration and secrets from AWS services into containers at runtime.
 
 ### Key Features
-- Reads JSON configuration from S3 and AWS Secrets Manager
-- Converts JSON key-value pairs to shell environment variable exports
+- Reads configuration from S3 (JSON objects) and AWS Secrets Manager (secret values)
+- Converts configuration to shell environment variable exports
 - Supports multiple configuration sources with merge capability
 - Works with AWS IAM roles, instance profiles, and task roles
 - Handles multiple output formats (env, json)
@@ -138,12 +138,14 @@ make docker-dist
 
 4. **pkg/resolvers**: Source Resolution
    - `ResolveSource()`: Main entry point for resolving a source
-   - **S3 Resolver**: Reads JSON from S3 buckets
+   - **S3 Resolver**: Reads JSON objects from S3 buckets
      - URL format: `s3://bucket-name/path/to/config.json?region=us-west-2`
-   - **Secrets Manager Resolver**: Reads from AWS Secrets Manager
-     - URL format: `sm://secret-name` or `sm:///path/prefix/*` (with wildcards)
-     - Supports recursive wildcard fetching
-   - `Manifest`: Parses JSON into key-value pairs
+     - S3 object must contain JSON
+   - **Secrets Manager Resolver**: Reads secrets from AWS Secrets Manager
+     - Single secret: `sm://secret-name` - secret value must be JSON formatted
+     - Wildcard: `sm:///path/prefix/*` - each secret value is used directly as env var value
+     - AWS SM stores secret name/value pairs, not JSON objects
+   - `readJSONString()`: Parses JSON into key-value pairs (used by S3 and single SM secrets)
      - Sanitizes keys (uppercase, replace special chars with underscore)
      - Handles string, number, boolean types
      - Converts multiline strings, booleans to shell format
@@ -156,7 +158,7 @@ make docker-dist
 ### Data Flow
 ```
 CLI Args/Env Var → Config → App (parallel resolution) → Resolvers (S3/SM) → 
-  Manifest Parser → Merge → Formatter → Output
+  JSON Parser (for S3 and single SM secrets) → Merge → Formatter → Output
 ```
 
 ## Development Workflow
@@ -294,8 +296,8 @@ Region can be specified:
 - **pkg/config/config.go**: Source configuration parsing
 - **pkg/resolvers/resolvers.go**: Main resolver dispatcher
 - **pkg/resolvers/s3.go**: S3 bucket resolution
-- **pkg/resolvers/secretsmanager.go**: AWS Secrets Manager resolution (supports wildcards)
-- **pkg/resolvers/manifest.go**: JSON parsing and key sanitization
+- **pkg/resolvers/secretsmanager.go**: AWS Secrets Manager resolution (supports wildcards, single secrets must contain JSON)
+- **pkg/resolvers/aws.go**: AWS configuration and JSON parsing utilities
 - **pkg/formatters/format.go**: Output format implementations
 
 ## Security Considerations
