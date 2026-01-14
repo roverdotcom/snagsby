@@ -5,7 +5,7 @@
 **Snagsby** is a Go-based command-line tool that reads configuration from AWS S3 buckets or AWS Secrets Manager and outputs environment variable exports suitable for shell evaluation. It's commonly used in Docker container workflows to inject configuration and secrets from AWS services into containers at runtime.
 
 ### Key Features
-- Reads configuration from S3 (JSON objects) and AWS Secrets Manager (secret values)
+- Reads configuration from S3 (JSON objects) and AWS Secrets Manager (secret values, optionally JSON)
 - Converts configuration to shell environment variable exports
 - Supports multiple configuration sources with merge capability
 - Works with AWS IAM roles, instance profiles, and task roles
@@ -142,9 +142,9 @@ make docker-dist
      - URL format: `s3://bucket-name/path/to/config.json?region=us-west-2`
      - S3 object must contain JSON
    - **Secrets Manager Resolver**: Reads secrets from AWS Secrets Manager
-     - Single secret: `sm://secret-name` - secret value must be JSON formatted
-     - Wildcard: `sm:///path/prefix/*` - each secret value is used directly as env var value
-     - AWS SM stores secret name/value pairs, not JSON objects
+     - Single secret: `sm://secret-name` - secret value contains JSON that gets expanded into multiple env vars
+     - Wildcard: `sm:///path/prefix/*` - each secret value is used directly as a single env var value
+     - AWS SM stores secret name/value pairs; single secrets can contain JSON values that snagsby expands
    - `readJSONString()`: Parses JSON into key-value pairs (used by S3 and single SM secrets)
      - Sanitizes keys (uppercase, replace special chars with underscore)
      - Handles string, number, boolean types
@@ -296,7 +296,7 @@ Region can be specified:
 - **pkg/config/config.go**: Source configuration parsing
 - **pkg/resolvers/resolvers.go**: Main resolver dispatcher
 - **pkg/resolvers/s3.go**: S3 bucket resolution
-- **pkg/resolvers/secretsmanager.go**: AWS Secrets Manager resolution (supports wildcards, single secrets must contain JSON)
+- **pkg/resolvers/secretsmanager.go**: AWS Secrets Manager resolution (supports wildcards; single secrets contain JSON expanded into multiple env vars)
 - **pkg/resolvers/aws.go**: AWS configuration and JSON parsing utilities
 - **pkg/formatters/format.go**: Output format implementations
 
