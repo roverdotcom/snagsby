@@ -3,3 +3,5 @@ dist
 /snagsby
 coverage*.out
 test_output*.txt
+__pycache__/
+*.pyc
