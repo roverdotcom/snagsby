@@ -72,3 +72,38 @@ func TestJsonFormat(t *testing.T) {
 		t.Errorf("Env single line is off.")
 	}
 }
+
+func TestEnvFileFormat(t *testing.T) {
+	in := map[string]string{
+		"ONE": "1",
+	}
+	out := EnvFileFormater(in)
+	expected := "ONE=\"1\"\n"
+	if strings.Compare(out, expected) != 0 {
+		fmt.Println(out)
+		fmt.Println(expected)
+		t.Errorf("EnvFile format is off.")
+	}
+
+	// Test with escaping
+	in = map[string]string{
+		"ESCAPE_TEST": `$HELLO "FRIEND" \12` + "`END",
+	}
+	out = EnvFileFormater(in)
+	expected = `ESCAPE_TEST="\$HELLO \"FRIEND\" \\12` + "\\`END\"\n"
+	if strings.Compare(out, expected) != 0 {
+		t.Error(out, expected)
+	}
+	
+	// Test with multiple keys (should be sorted)
+	in = map[string]string{
+		"Z": "last",
+		"A": "first",
+		"M": "middle",
+	}
+	out = EnvFileFormater(in)
+	expected = "A=\"first\"\nM=\"middle\"\nZ=\"last\"\n"
+	if strings.Compare(out, expected) != 0 {
+		t.Errorf("EnvFile format sorting failed.\nGot:\n%s\nExpected:\n%s", out, expected)
+	}
+}

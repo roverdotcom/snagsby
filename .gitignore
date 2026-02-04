@@ -1,3 +1,5 @@
 bin
 dist
 /snagsby
+coverage*.out
+test_output*.txt
