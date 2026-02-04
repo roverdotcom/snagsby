@@ -1,0 +1,32 @@
+	github.com/roverdotcom/snagsby		coverage: 0.0% of statements
+?   	github.com/roverdotcom/snagsby/pkg	[no test files]
+	github.com/roverdotcom/snagsby/pkg/app		coverage: 0.0% of statements
+=== RUN   TestSplitEnvArg
+--- PASS: TestSplitEnvArg (0.00s)
+=== RUN   TestGetSources
+--- PASS: TestGetSources (0.00s)
+PASS
+coverage: 85.0% of statements
+ok  	github.com/roverdotcom/snagsby/pkg/config	0.003s	coverage: 85.0% of statements
+=== RUN   TestMerge
+--- PASS: TestMerge (0.00s)
+=== RUN   TestEnvFormat
+--- PASS: TestEnvFormat (0.00s)
+=== RUN   TestJsonFormat
+--- PASS: TestJsonFormat (0.00s)
+PASS
+coverage: 65.5% of statements
+ok  	github.com/roverdotcom/snagsby/pkg/formatters	0.003s	coverage: 65.5% of statements
+=== RUN   TestReadJSONString
+--- PASS: TestReadJSONString (0.00s)
+=== RUN   TestKeyRegexp
+--- PASS: TestKeyRegexp (0.00s)
+=== RUN   TestSanitizeKey
+--- PASS: TestSanitizeKey (0.00s)
+=== RUN   TestIsRecursive
+--- PASS: TestIsRecursive (0.00s)
+=== RUN   TestKeyNameFromPrefix
+--- PASS: TestKeyNameFromPrefix (0.00s)
+PASS
+coverage: 13.2% of statements
+ok  	github.com/roverdotcom/snagsby/pkg/resolvers	0.004s	coverage: 13.2% of statements
