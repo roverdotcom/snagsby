@@ -94,7 +94,7 @@ func TestEnvFileFormat(t *testing.T) {
 	if strings.Compare(out, expected) != 0 {
 		t.Error(out, expected)
 	}
-	
+
 	// Test with multiple keys (should be sorted)
 	in = map[string]string{
 		"Z": "last",

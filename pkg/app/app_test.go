@@ -20,7 +20,7 @@ func TestResolveConfigSources(t *testing.T) {
 	invalidURL, _ := url.Parse("invalid://test/path")
 	invalidSource := &config.Source{URL: invalidURL}
 	invalidConfig.Sources = []*config.Source{invalidSource}
-	
+
 	results = ResolveConfigSources(invalidConfig)
 	if len(results) != 1 {
 		t.Errorf("Expected 1 result, got %d", len(results))
@@ -39,7 +39,7 @@ func TestResolveConfigSources(t *testing.T) {
 		{URL: url2},
 		{URL: url3},
 	}
-	
+
 	results = ResolveConfigSources(multiConfig)
 	if len(results) != 3 {
 		t.Errorf("Expected 3 results, got %d", len(results))
