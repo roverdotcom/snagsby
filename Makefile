@@ -79,6 +79,16 @@ e2e-quick:
 	./e2e/e2e.sh
 
 
+.PHONY: e2e-comprehensive
+e2e-comprehensive: dist
+	./e2e/e2e_comprehensive.sh
+
+
+.PHONY: e2e-comprehensive-quick
+e2e-comprehensive-quick:
+	./e2e/e2e_comprehensive.sh
+
+
 .PHONY: docker-build-images
 docker-build-images:
 	docker build --pull -t snagsby:v$(VERSION) .
