@@ -69,4 +69,40 @@ func TestGetSources(t *testing.T) {
 	if err == nil || config.LenSources() != 0 {
 		t.Errorf("Expected a parsing url for the : url")
 	}
+
+	// Test GetSources method
+	config2 := NewConfig()
+	sources := []string{
+		"s3://bucket/one.json",
+		"s3://bucket/two.json",
+		"s3://bucket/three.json",
+	}
+
+	err = config2.SetSources(sources, "")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	retrievedSources := config2.GetSources()
+	if len(retrievedSources) != 3 {
+		t.Errorf("Expected 3 sources, got %d", len(retrievedSources))
+	}
+
+	// Verify sources are returned in order
+	if retrievedSources[0].URL.Path != "/one.json" {
+		t.Errorf("Expected first source path /one.json, got %s", retrievedSources[0].URL.Path)
+	}
+	if retrievedSources[1].URL.Path != "/two.json" {
+		t.Errorf("Expected second source path /two.json, got %s", retrievedSources[1].URL.Path)
+	}
+	if retrievedSources[2].URL.Path != "/three.json" {
+		t.Errorf("Expected third source path /three.json, got %s", retrievedSources[2].URL.Path)
+	}
+
+	// Test empty config
+	emptyConfig := NewConfig()
+	emptySources := emptyConfig.GetSources()
+	if len(emptySources) != 0 {
+		t.Errorf("Expected empty sources for new config, got %d", len(emptySources))
+	}
 }
