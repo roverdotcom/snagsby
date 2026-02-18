@@ -1,5 +1,5 @@
 ARG GOLANG_VERSION
-FROM 290268990387.dkr.ecr.us-west-2.amazonaws.com/ecr-public/docker/library/golang:${GOLANG_VERSION:-1.25.0} as build
+FROM 290268990387.dkr.ecr.us-west-2.amazonaws.com/ecr-public/docker/library/golang:${GOLANG_VERSION:-1.25.7} as build
 ENV CGO_ENABLED=0
 WORKDIR /go/src/github.com/roverdotcom/snagsby
 COPY . /go/src/github.com/roverdotcom/snagsby

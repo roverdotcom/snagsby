@@ -1,5 +1,5 @@
 VERSION ?= $(shell cat VERSION)
-GOLANG_VERSION ?= 1.25.0
+GOLANG_VERSION ?= 1.25.7
 GOLANG_DOCKER_IMAGE ?= golang:$(GOLANG_VERSION)
 GO_LDFLAGS := -X github.com/roverdotcom/snagsby/pkg.Version=$(VERSION)
 export
