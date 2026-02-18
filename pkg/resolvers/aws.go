@@ -21,7 +21,7 @@ func getAwsConfig(optFns ...func(*config.LoadOptions) error) (aws.Config, error)
 }
 
 func readJSONString(input string) (map[string]string, error) {
-	var f map[string]interface{}
+	var f map[string]any
 	out := map[string]string{}
 	if err := json.Unmarshal([]byte(input), &f); err != nil {
 		return out, err

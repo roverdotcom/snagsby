@@ -68,12 +68,12 @@ func resolveManifestItems(manifestItems *ManifestItems, result *Result) {
 
 	// Boot up 20 workers
 	numWorkers := 20
-	for i := 0; i < numWorkers; i++ {
+	for range numWorkers {
 		go manifestWorker(svc, jobsChan, resultsChan)
 	}
 	close(jobsChan)
 
-	for i := 0; i < numItems; i++ {
+	for range numItems {
 		getResult := <-resultsChan
 		if getResult.Error != nil {
 			result.AppendError(getResult.Error)

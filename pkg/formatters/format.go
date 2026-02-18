@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"regexp"
 	"sort"
 )
@@ -21,9 +22,7 @@ var Formatters = map[string]formatterFunc{
 func Merge(i []map[string]string) map[string]string {
 	out := make(map[string]string)
 	for _, m := range i {
-		for k, v := range m {
-			out[k] = v
-		}
+		maps.Copy(out, m)
 	}
 	return out
 }
