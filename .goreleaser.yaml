@@ -7,7 +7,8 @@ before:
     - go mod tidy
 
 builds:
-  - env:
+  - id: snagsby
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -18,6 +19,11 @@ builds:
     ldflags:
       - -X github.com/roverdotcom/snagsby/pkg.Version={{.Version}}
     binary: snagsby
+    # Create directories compatible with e2e test expectations
+    # Only copy amd64 binaries to match original dist.sh behavior
+    hooks:
+      post:
+        - sh -c 'if [ "{{ .Arch }}" = "amd64" ]; then mkdir -p dist/{{ .Os }} && cp {{ .Path }} dist/{{ .Os }}/snagsby; fi'
 
 archives:
   - format: tar.gz
