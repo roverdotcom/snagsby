@@ -1,5 +1,5 @@
 VERSION ?= $(shell cat VERSION)
-GOLANG_VERSION ?= 1.16.3
+GOLANG_VERSION ?= 1.25.7
 GOLANG_DOCKER_IMAGE ?= golang:$(GOLANG_VERSION)
 GO_LDFLAGS := -X github.com/roverdotcom/snagsby/pkg.Version=$(VERSION)
 export
@@ -66,7 +66,7 @@ fpm:
 
 .PHONY: test
 test:
-	@go test -v $(shell go list ./... | grep -v vendor)
+	@go test -v ./...
 
 
 .PHONY: e2e
