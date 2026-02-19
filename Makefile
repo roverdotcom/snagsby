@@ -13,8 +13,15 @@ clean:
 
 .PHONY: dist
 dist:
-	./scripts/dist.sh
+	goreleaser build --snapshot --clean
 
+.PHONY: release-snapshot
+release-snapshot:
+	goreleaser release --snapshot --clean
+
+.PHONY: release
+release:
+	goreleaser release --clean
 
 .PHONY: docker-dist
 docker-dist:
