@@ -120,7 +120,7 @@ make release-snapshot
 ```
 
 ### Build Configuration
-- **Version**: Managed via Git tags (e.g., `v0.6.1`); VERSION file kept for reference
+- **Version**: Managed via Git tags (e.g., `v0.6.1`) - no VERSION file needed
 - **Build flags**: `-ldflags "-X github.com/roverdotcom/snagsby/pkg.Version={{.Version}}"`
 - **CGO**: Disabled (`CGO_ENABLED=0`) for static binary compilation
 - **Platforms**: Supports Linux and macOS, both amd64 and arm64
@@ -301,7 +301,6 @@ Region can be specified:
 
 - **Makefile**: All build targets and commands
 - **.goreleaser.yaml**: Goreleaser configuration for builds and releases
-- **VERSION**: Current version number (for reference; releases use Git tags)
 - **go.mod**: Go module dependencies
 - **main.go**: CLI entry point and flag handling
 - **pkg/app/app.go**: Parallel source resolution orchestration

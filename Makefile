@@ -1,4 +1,4 @@
-VERSION ?= $(shell cat VERSION)
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 GOLANG_VERSION ?= 1.25.7
 GOLANG_DOCKER_IMAGE ?= golang:$(GOLANG_VERSION)
 GO_LDFLAGS := -X github.com/roverdotcom/snagsby/pkg.Version=$(VERSION)
