@@ -1,9 +1,10 @@
-# GoReleaser configuration for snagsby
-# See https://goreleaser.com for documentation
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+version: 2
 
 before:
   hooks:
-    # You may remove this if you don't use go modules.
     - go mod tidy
 
 builds:
@@ -19,35 +20,26 @@ builds:
     ldflags:
       - -X github.com/roverdotcom/snagsby/pkg.Version={{.Version}}
     binary: snagsby
-    # Create directories compatible with e2e test expectations
-    # Only copy amd64 binaries to match original dist.sh behavior
-    hooks:
-      post:
-        - sh -c 'if [ "{{ .Arch }}" = "amd64" ]; then mkdir -p dist/{{ .Os }} && cp {{ .Path }} dist/{{ .Os }}/snagsby; fi'
 
 archives:
-  - format: tar.gz
-    # this name template makes the OS and Arch compatible with the results of `uname`.
+  - formats: [tar.gz]
     name_template: >-
       {{ .ProjectName }}-
       {{- .Version }}.
       {{- .Os }}-
       {{- .Arch }}
-    format_overrides:
-      - goos: windows
-        format: zip
     files:
       # Include only the binary, no extra files
       - none*
 
 checksum:
   name_template: 'checksums.txt'
-
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
 
 changelog:
   sort: asc
+  use: github
   filters:
     exclude:
       - '^docs:'
