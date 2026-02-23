@@ -19,7 +19,7 @@
   - AWS S3 SDK
   - AWS Secrets Manager SDK
   - sigs.k8s.io/yaml for YAML parsing
-- **Build Tool**: Make
+- **Build Tool**: Make with Goreleaser
 - **Testing**: Go standard testing library
 - **CI/CD**: GitHub Actions
 
@@ -50,9 +50,9 @@ snagsby/
 │   ├── e2e.sh            # E2E test runner (requires AWS credentials)
 │   └── e2e.py            # E2E test validation script
 ├── scripts/
-│   ├── dist.sh           # Build distribution binaries
-│   ├── fpm.sh            # Package creation script
+│   ├── fpm.sh            # Legacy package creation script
 │   └── DockerfileFpm     # FPM packaging Dockerfile
+├── .goreleaser.yaml      # Goreleaser configuration
 ├── Makefile              # Build and test targets
 ├── Dockerfile            # Multi-stage Docker build
 ├── go.mod                # Go module definition
@@ -66,6 +66,7 @@ snagsby/
 ### Prerequisites
 - Go 1.16 or higher
 - Make
+- Goreleaser (for building distribution artifacts)
 - Docker (optional, for containerized builds)
 
 ### Common Commands
@@ -74,6 +75,12 @@ snagsby/
 ```bash
 # Build binary locally
 make build
+
+# Build distribution binaries for all platforms (requires goreleaser)
+make dist
+
+# Build a snapshot release (test release build without publishing)
+make release-snapshot
 
 # Build in Docker container
 make docker-build-images
@@ -105,15 +112,19 @@ make e2e-quick
 # Build distribution binaries for multiple platforms
 make dist
 
-# Build distribution in Docker
-make docker-dist
+# Build a snapshot release locally
+make release-snapshot
+
+# Actual releases are created automatically via GitHub Actions
+# when a new tag is pushed (e.g., git tag v0.6.2 && git push --tags)
 ```
 
 ### Build Configuration
-- **Version**: Read from `VERSION` file (currently 0.6.1)
-- **Build flags**: `-ldflags "-X github.com/roverdotcom/snagsby/pkg.Version=$(VERSION)"`
+- **Version**: Managed via Git tags (e.g., `v0.6.1`) - no VERSION file needed
+- **Build flags**: `-ldflags "-X github.com/roverdotcom/snagsby/pkg.Version={{.Version}}"`
 - **CGO**: Disabled (`CGO_ENABLED=0`) for static binary compilation
-- **Platforms**: Supports Linux and macOS (amd64)
+- **Platforms**: Supports Linux and macOS, both amd64 and arm64
+- **Release Tool**: Goreleaser handles builds, archives, and GitHub releases
 
 ## Code Architecture
 
@@ -289,7 +300,7 @@ Region can be specified:
 ## Key Files Reference
 
 - **Makefile**: All build targets and commands
-- **VERSION**: Current version number (used in builds)
+- **.goreleaser.yaml**: Goreleaser configuration for builds and releases
 - **go.mod**: Go module dependencies
 - **main.go**: CLI entry point and flag handling
 - **pkg/app/app.go**: Parallel source resolution orchestration
@@ -299,6 +310,7 @@ Region can be specified:
 - **pkg/resolvers/secretsmanager.go**: AWS Secrets Manager resolution (supports wildcards; single secrets contain JSON expanded into multiple env vars)
 - **pkg/resolvers/aws.go**: AWS configuration and JSON parsing utilities
 - **pkg/formatters/format.go**: Output format implementations
+- **.github/workflows/release.yaml**: GitHub Actions workflow for automated releases
 
 ## Security Considerations
 

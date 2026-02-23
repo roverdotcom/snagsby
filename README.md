@@ -91,3 +91,16 @@ in aws ecs snagsby will use the task iam role.
 You can configure the default region by setting the `AWS_REGION` environment
 variable. It's recommended you set the region on each source:
 `s3://my-bucket/snagsby-config.json?region=us-west-2`
+
+## Releasing
+
+From the `main` branch create a new SemVer tag:
+
+```bash
+git tag -a v0.7.0 -m "Release v0.7.0"
+```
+
+If you are looking to create a pre-release, ensure that you use a SemVer with a pre-release suffix i.e. SemVer with a dash and your pre-release suffix. For example `v0.7.0-alpha`.
+
+When you have your tag created, push to the remote with `git push --tags` and the release job will be created.
+
