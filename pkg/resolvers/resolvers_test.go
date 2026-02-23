@@ -132,7 +132,7 @@ func TestResolveSource(t *testing.T) {
 	}
 
 	// Test with each valid scheme (will error due to no AWS, but scheme routing works)
-	schemes := []string{"s3", "sm", "manifest"}
+	schemes := []string{"s3", "sm", "manifest", "file"}
 	for _, scheme := range schemes {
 		testURL, _ := url.Parse(scheme + "://test/path")
 		testSource := &config.Source{URL: testURL}
