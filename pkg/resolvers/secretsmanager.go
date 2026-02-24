@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
@@ -27,41 +26,6 @@ func init() {
 		if err == nil && i >= 0 {
 			smConcurrency = i
 		}
-	}
-}
-
-// Concurrency work
-type smMessage struct {
-	Source      *config.Source
-	Name        *string
-	Result      string
-	Error       error
-	IsRecursive bool
-}
-
-func smWorker(jobs <-chan *smMessage, results chan<- *smMessage, svc *secretsmanager.Client) {
-	for job := range jobs {
-		sourceURL := job.Source.URL
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		input := &secretsmanager.GetSecretValueInput{
-			SecretId: job.Name,
-		}
-		versionStage := sourceURL.Query().Get("version-stage")
-		if versionStage != "" {
-			input.VersionStage = aws.String(versionStage)
-		}
-		versionID := sourceURL.Query().Get("version-id")
-		if versionID != "" {
-			input.VersionId = aws.String(versionID)
-		}
-		getSecret, err := svc.GetSecretValue(ctx, input)
-		if err != nil {
-			job.Error = err
-		} else {
-			job.Result = *getSecret.SecretString
-		}
-		results <- job
 	}
 }
 
@@ -105,7 +69,9 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 			},
 		},
 	}
-	secretKeys := []*string{}
+
+	// Collect all secret names from paginated results
+	secretIDs := []string{}
 	paginator := secretsmanager.NewListSecretsPaginator(svc, params)
 	for paginator.HasMorePages() {
 		output, err := paginator.NextPage(context.TODO())
@@ -114,41 +80,31 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 			return result
 		}
 		for _, secret := range output.SecretList {
-			secretKeys = append(secretKeys, secret.Name)
+			secretIDs = append(secretIDs, *secret.Name)
 		}
-
 	}
 
-	jobs := make(chan *smMessage, len(secretKeys))
-	results := make(chan *smMessage, len(secretKeys))
-
-	// Determine concurrency level defaulting to number of secrets to pull
-	var numWorkers int
-	if smConcurrency > 0 {
-		numWorkers = smConcurrency
-	} else {
-		numWorkers = len(secretKeys)
-	}
-
-	// Boot up workers
-	for w := 1; w <= numWorkers; w++ {
-		go smWorker(jobs, results, svc)
-	}
-
-	// Publish to workers
-	for _, name := range secretKeys {
-		jobs <- &smMessage{Source: source, Name: name}
-	}
-	close(jobs)
-
-	// Loop through results
-	for a := 1; a <= len(secretKeys); a++ {
-		res := <-results
-		if res.Error != nil {
-			result.AppendError(res.Error)
-		} else {
-			result.AppendItem(s.keyNameFromPrefix(prefix, *res.Name), res.Result)
+	// Determine concurrency level
+	concurrency := smConcurrency
+	if concurrency <= 0 {
+		concurrency = len(secretIDs)
+		if concurrency > 20 {
+			concurrency = 20 // Cap at 20 workers by default
 		}
+	}
+
+	// Fetch all secrets using shared batch function
+	secretValues, errors := BatchFetchSecrets(secretIDs, concurrency)
+
+	// Add errors to result
+	for _, err := range errors {
+		result.AppendError(err)
+	}
+
+	// Add fetched secrets with key name transformation
+	for secretID, value := range secretValues {
+		keyName := s.keyNameFromPrefix(prefix, secretID)
+		result.AppendItem(keyName, value)
 	}
 
 	return result
