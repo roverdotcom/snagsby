@@ -66,8 +66,13 @@ func getSecrets(source *config.Source, svc *secretsmanager.Client, keys []*strin
 
 	fullResult := &Result{Source: source}
 
+	numWorkers := smConcurrency
+	if numWorkers <= 0 {
+		numWorkers = len(keys)
+	}
+
 	// Start workers
-	for w := 0; w < smConcurrency; w++ {
+	for w := 0; w < numWorkers; w++ {
 		go smWorker(jobs, results, svc)
 	}
 
