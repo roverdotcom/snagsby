@@ -44,6 +44,8 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 			},
 		},
 	}
+
+	// Collect all secret names from paginated results
 	secretKeys := []*string{}
 	paginator := secretsmanager.NewListSecretsPaginator(svc, params)
 	for paginator.HasMorePages() {
@@ -55,7 +57,6 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 		for _, secret := range output.SecretList {
 			secretKeys = append(secretKeys, secret.Name)
 		}
-
 	}
 
 	return getSecrets(source, svc, secretKeys)

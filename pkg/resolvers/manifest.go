@@ -1,14 +1,9 @@
 package resolvers
 
 import (
-	"context"
 	"fmt"
 	"os"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/retry"
-	awsConfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/roverdotcom/snagsby/pkg/config"
 
 	"sigs.k8s.io/yaml"
@@ -23,65 +18,30 @@ type ManifestItem struct {
 	Env  string `json:"env"`
 }
 
-type manifestResult struct {
-	Value string
-	Error error
-	Item  *ManifestItem
-}
-
-func manifestWorker(svc *secretsmanager.Client, jobs <-chan *ManifestItem, resultChan chan<- *manifestResult) {
-	for manifestItem := range jobs {
-		result := &manifestResult{Item: manifestItem}
-		value, err := getSecretValue(svc, manifestItem)
-		result.Error = err
-		result.Value = value
-		resultChan <- result
-	}
-}
-
-func getSecretValue(svc *secretsmanager.Client, manifestItem *ManifestItem) (string, error) {
-	input := &secretsmanager.GetSecretValueInput{
-		SecretId: &manifestItem.Name,
-	}
-	getSecret, err := svc.GetSecretValue(context.TODO(), input)
-	if err != nil {
-		return "", err
-	}
-	return *getSecret.SecretString, nil
-}
-
 func resolveManifestItems(manifestItems *ManifestItems, result *Result) {
-	cfg, err := getAwsConfig(awsConfig.WithRetryer(func() aws.Retryer {
-		return retry.AddWithMaxAttempts(retry.NewStandard(), 10)
-	}))
-	if err != nil {
-		result.AppendError(err)
-		return
-	}
-	svc := secretsmanager.NewFromConfig(cfg)
-	numItems := len(manifestItems.Items)
-	resultsChan := make(chan *manifestResult, numItems)
-	jobsChan := make(chan *ManifestItem, numItems)
+	// Build list of secret IDs and mapping to env var names
+	secretIDs := make([]string, 0, len(manifestItems.Items))
+	secretIDToEnv := make(map[string]string)
+
 	for _, item := range manifestItems.Items {
-		jobsChan <- item
+		secretIDs = append(secretIDs, item.Name)
+		secretIDToEnv[item.Name] = item.Env
 	}
 
-	// Boot up 20 workers
-	numWorkers := 20
-	for range numWorkers {
-		go manifestWorker(svc, jobsChan, resultsChan)
-	}
-	close(jobsChan)
+	// Fetch all secrets using shared batch function
+	secretValues, errors := BatchFetchSecrets(secretIDs, 20)
 
-	for range numItems {
-		getResult := <-resultsChan
-		if getResult.Error != nil {
-			result.AppendError(getResult.Error)
-		} else {
-			result.AppendItem(getResult.Item.Env, getResult.Value)
+	// Add errors to result
+	for _, err := range errors {
+		result.AppendError(err)
+	}
+
+	// Add fetched secrets to result
+	for secretID, value := range secretValues {
+		if envKey, ok := secretIDToEnv[secretID]; ok {
+			result.AppendItem(envKey, value)
 		}
 	}
-	close(resultsChan)
 }
 
 type ManifestResolver struct{}
