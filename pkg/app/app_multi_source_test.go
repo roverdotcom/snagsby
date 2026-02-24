@@ -11,22 +11,6 @@ import (
 	"github.com/roverdotcom/snagsby/pkg/resolvers"
 )
 
-// mockResolver is a test resolver that simulates AWS resolvers
-type mockResolver struct {
-	items map[string]string
-	err   error
-}
-
-func (m *mockResolver) Resolve(source *config.Source) *resolvers.Result {
-	result := &resolvers.Result{Source: source}
-	if m.err != nil {
-		result.AppendError(m.err)
-		return result
-	}
-	result.AppendItems(m.items)
-	return result
-}
-
 // TestMultiSourceOrderPreservation tests that ResolveConfigSources preserves
 // source order, which is critical for the "later sources overwrite earlier ones" behavior.
 // This test uses real file:// resolvers to ensure we're testing the actual production code path.
@@ -113,8 +97,8 @@ API_KEY=third_api_key
 		"ONLY_IN_SECOND": "value2",
 		"ONLY_IN_THIRD":  "value3",
 		"DATABASE_HOST":  "localhost",
-		"SHARED_KEY":     "from_third",       // Third source wins
-		"API_KEY":        "third_api_key",    // Third source wins over second
+		"SHARED_KEY":     "from_third",    // Third source wins
+		"API_KEY":        "third_api_key", // Third source wins over second
 	}
 
 	if len(merged) != len(expected) {
@@ -138,86 +122,63 @@ API_KEY=third_api_key
 	}
 }
 
-// TestMultiSourceTypesMergeLogic demonstrates the merge logic with different source types.
-// NOTE: This test uses mocks for sm:// and s3:// to show the concept, but does NOT test
-// the actual ResolveConfigSources function with those source types (which would require AWS).
-// See TestMultiSourceOrderPreservation for testing the real production code path.
+// TestMultiSourceTypesMergeLogic demonstrates how formatters.Merge works
+// when combining results from different source types (file://, sm://, s3://).
 func TestMultiSourceTypesMergeLogic(t *testing.T) {
-	// This test demonstrates the CONCEPT of merging file://, sm://, and s3:// sources,
-	// but it's NOT testing the actual production flow through ResolveConfigSources.
-	// It's kept here for documentation purposes to show how different source types
-	// would interact in a real scenario.
-
-	// Create a temporary .env file
-	tmpDir := t.TempDir()
-	envFile := filepath.Join(tmpDir, "base.env")
-
-	envContent := `# Base configuration
-DATABASE_HOST=localhost
-DATABASE_PORT=5432
-API_KEY=file_api_key
-SHARED_SECRET=from_file
-`
-
-	err := os.WriteFile(envFile, []byte(envContent), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
-
-	// 1. Resolve file:// source (real resolver)
-	fileURL, _ := url.Parse("file://" + envFile)
-	fileSource := &config.Source{URL: fileURL}
-	fileResolver := &resolvers.FileResolver{}
-	fileResult := fileResolver.Resolve(fileSource)
-
-	if fileResult.HasErrors() {
-		t.Fatalf("File resolver failed: %v", fileResult.Errors)
-	}
-
-	// 2. Simulate sm:// source (mock - can't test without AWS)
+	// Simulate results from three different source types
+	fileURL, _ := url.Parse("file:///config/base.env")
 	smURL, _ := url.Parse("sm://production/database/*")
-	smSource := &config.Source{URL: smURL}
-	mockSMResolver := &mockResolver{
-		items: map[string]string{
+	s3URL, _ := url.Parse("s3://my-bucket/config.json")
+
+	// Result 1: from file:// (would contain static config)
+	fileResult := &resolvers.Result{
+		Source: &config.Source{URL: fileURL},
+		Items: map[string]string{
+			"DATABASE_HOST": "localhost",
+			"DATABASE_PORT": "5432",
+			"API_KEY":       "file_api_key",
+			"SHARED_SECRET": "from_file",
+		},
+	}
+
+	// Result 2: from sm:// (would contain AWS secrets)
+	smResult := &resolvers.Result{
+		Source: &config.Source{URL: smURL},
+		Items: map[string]string{
 			"DATABASE_PASSWORD": "secret_from_sm",
 			"DATABASE_USER":     "admin",
-			"SHARED_SECRET":     "from_sm", // Would overwrite file://
+			"SHARED_SECRET":     "from_sm", // Overwrites file://
 		},
 	}
-	smResult := mockSMResolver.Resolve(smSource)
 
-	// 3. Simulate s3:// source (mock - can't test without AWS)
-	s3URL, _ := url.Parse("s3://my-bucket/config.json")
-	s3Source := &config.Source{URL: s3URL}
-	mockS3Resolver := &mockResolver{
-		items: map[string]string{
+	// Result 3: from s3:// (would contain final overrides)
+	s3Result := &resolvers.Result{
+		Source: &config.Source{URL: s3URL},
+		Items: map[string]string{
 			"CACHE_ENDPOINT": "redis.example.com",
 			"CACHE_PORT":     "6379",
-			"API_KEY":        "s3_api_key",      // Would overwrite file://
-			"SHARED_SECRET":  "from_s3_final",  // Would overwrite both file:// and sm://
+			"API_KEY":        "s3_api_key",    // Overwrites file://
+			"SHARED_SECRET":  "from_s3_final", // Overwrites both file:// and sm://
 		},
 	}
-	s3Result := mockS3Resolver.Resolve(s3Source)
 
-	// Merge results (demonstrating the merge logic only)
-	results := []*resolvers.Result{fileResult, smResult, s3Result}
-	var itemMaps []map[string]string
-	for _, result := range results {
-		itemMaps = append(itemMaps, result.Items)
-	}
+	// Merge in order: file < sm < s3
+	merged := formatters.Merge([]map[string]string{
+		fileResult.Items,
+		smResult.Items,
+		s3Result.Items,
+	})
 
-	merged := formatters.Merge(itemMaps)
-
-	// Verify the merge logic works as expected
+	// Verify the merge behavior
 	expected := map[string]string{
-		"DATABASE_HOST":     "localhost",
-		"DATABASE_PORT":     "5432",
-		"DATABASE_PASSWORD": "secret_from_sm",
-		"DATABASE_USER":     "admin",
-		"CACHE_ENDPOINT":    "redis.example.com",
-		"CACHE_PORT":        "6379",
-		"API_KEY":           "s3_api_key",
-		"SHARED_SECRET":     "from_s3_final",
+		"DATABASE_HOST":     "localhost",         // From file:// (not overwritten)
+		"DATABASE_PORT":     "5432",              // From file:// (not overwritten)
+		"DATABASE_PASSWORD": "secret_from_sm",    // From sm://
+		"DATABASE_USER":     "admin",             // From sm://
+		"CACHE_ENDPOINT":    "redis.example.com", // From s3://
+		"CACHE_PORT":        "6379",              // From s3://
+		"API_KEY":           "s3_api_key",        // From s3:// (overwrote file://)
+		"SHARED_SECRET":     "from_s3_final",     // From s3:// (overwrote sm:// and file://)
 	}
 
 	for key, expectedValue := range expected {
@@ -229,14 +190,14 @@ SHARED_SECRET=from_file
 	}
 }
 
-// TestRealWorldScenario simulates a real-world usage pattern
+// TestRealWorldScenario simulates a typical layered configuration pattern:
+// defaults < local overrides < production secrets
 func TestRealWorldScenario(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create .env.defaults (committed to repo)
 	defaultsFile := filepath.Join(tmpDir, ".env.defaults")
-	defaultsContent := `# Default configuration values
-APP_NAME=myapp
+	defaultsContent := `APP_NAME=myapp
 APP_ENV=development
 LOG_LEVEL=info
 DATABASE_HOST=localhost
@@ -250,8 +211,7 @@ CACHE_TTL=300
 
 	// Create .env.local (local overrides, not committed)
 	localFile := filepath.Join(tmpDir, ".env.local")
-	localContent := `# Local development overrides
-LOG_LEVEL=debug
+	localContent := `LOG_LEVEL=debug
 DATABASE_HOST=127.0.0.1
 `
 	err = os.WriteFile(localFile, []byte(localContent), 0644)
@@ -259,50 +219,46 @@ DATABASE_HOST=127.0.0.1
 		t.Fatalf("Failed to create local file: %v", err)
 	}
 
-	// Resolve defaults
+	// Resolve defaults and local using real file resolver
 	defaultsURL, _ := url.Parse("file://" + defaultsFile)
-	defaultsSource := &config.Source{URL: defaultsURL}
 	defaultsResolver := &resolvers.FileResolver{}
-	defaultsResult := defaultsResolver.Resolve(defaultsSource)
+	defaultsResult := defaultsResolver.Resolve(&config.Source{URL: defaultsURL})
 
-	// Resolve local overrides
 	localURL, _ := url.Parse("file://" + localFile)
-	localSource := &config.Source{URL: localURL}
 	localResolver := &resolvers.FileResolver{}
-	localResult := localResolver.Resolve(localSource)
+	localResult := localResolver.Resolve(&config.Source{URL: localURL})
 
-	// Mock AWS Secrets Manager (would fetch DATABASE_PASSWORD)
+	// Simulate AWS Secrets Manager result (would come from sm://production/api/*)
 	smURL, _ := url.Parse("sm://production/api/*")
-	smSource := &config.Source{URL: smURL}
-	mockSMResolver := &mockResolver{
-		items: map[string]string{
+	smResult := &resolvers.Result{
+		Source: &config.Source{URL: smURL},
+		Items: map[string]string{
 			"API_KEY":    "prod_api_key_from_aws",
 			"API_SECRET": "prod_secret_from_aws",
 		},
 	}
-	smResult := mockSMResolver.Resolve(smSource)
 
-	// Merge: defaults < local < aws
+	// Merge: defaults < local < aws (later wins)
 	merged := formatters.Merge([]map[string]string{
 		defaultsResult.Items,
 		localResult.Items,
 		smResult.Items,
 	})
 
-	// Verify expected behavior
+	// Verify layered configuration
 	tests := []struct {
 		key      string
 		expected string
 		source   string
 	}{
-		{"APP_NAME", "myapp", "defaults (not overridden)"},
-		{"APP_ENV", "development", "defaults (not overridden)"},
-		{"LOG_LEVEL", "debug", "local override wins"},
-		{"DATABASE_HOST", "127.0.0.1", "local override wins"},
-		{"DATABASE_PORT", "5432", "defaults (not overridden)"},
-		{"CACHE_TTL", "300", "defaults (not overridden)"},
-		{"API_KEY", "prod_api_key_from_aws", "from AWS SM"},
-		{"API_SECRET", "prod_secret_from_aws", "from AWS SM"},
+		{"APP_NAME", "myapp", "defaults"},
+		{"APP_ENV", "development", "defaults"},
+		{"LOG_LEVEL", "debug", "local override"},
+		{"DATABASE_HOST", "127.0.0.1", "local override"},
+		{"DATABASE_PORT", "5432", "defaults"},
+		{"CACHE_TTL", "300", "defaults"},
+		{"API_KEY", "prod_api_key_from_aws", "AWS SM"},
+		{"API_SECRET", "prod_secret_from_aws", "AWS SM"},
 	}
 
 	for _, tt := range tests {
@@ -314,32 +270,28 @@ DATABASE_HOST=127.0.0.1
 	}
 }
 
-// TestSourceOrderMatters verifies that the order of sources determines precedence
+// TestSourceOrderMatters verifies that source order determines precedence
 func TestSourceOrderMatters(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Source 1
-	file1 := filepath.Join(tmpDir, "first.env")
-	os.WriteFile(file1, []byte("KEY=first\n"), 0644)
+	files := []struct {
+		name  string
+		value string
+	}{
+		{"first.env", "KEY=first\n"},
+		{"second.env", "KEY=second\n"},
+		{"third.env", "KEY=third\n"},
+	}
 
-	// Source 2
-	file2 := filepath.Join(tmpDir, "second.env")
-	os.WriteFile(file2, []byte("KEY=second\n"), 0644)
-
-	// Source 3
-	file3 := filepath.Join(tmpDir, "third.env")
-	os.WriteFile(file3, []byte("KEY=third\n"), 0644)
-
-	// Test order: 1 -> 2 -> 3 (3 should win)
 	cfg := config.NewConfig()
-	url1, _ := url.Parse("file://" + file1)
-	url2, _ := url.Parse("file://" + file2)
-	url3, _ := url.Parse("file://" + file3)
+	for _, f := range files {
+		path := filepath.Join(tmpDir, f.name)
+		os.WriteFile(path, []byte(f.value), 0644)
+		url, _ := url.Parse("file://" + path)
+		cfg.Sources = append(cfg.Sources, &config.Source{URL: url})
+	}
 
-	cfg.Sources = append(cfg.Sources, &config.Source{URL: url1})
-	cfg.Sources = append(cfg.Sources, &config.Source{URL: url2})
-	cfg.Sources = append(cfg.Sources, &config.Source{URL: url3})
-
+	// Resolve using production code
 	results := ResolveConfigSources(cfg)
 
 	var itemMaps []map[string]string
@@ -349,6 +301,7 @@ func TestSourceOrderMatters(t *testing.T) {
 
 	merged := formatters.Merge(itemMaps)
 
+	// Last source should win
 	if merged["KEY"] != "third" {
 		t.Errorf("Expected last source to win: got %q, wanted %q", merged["KEY"], "third")
 	}

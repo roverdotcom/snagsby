@@ -2,15 +2,10 @@ package resolvers
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"os"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/retry"
-	awsConfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/roverdotcom/snagsby/pkg/config"
 )
 
@@ -18,32 +13,6 @@ type EnvFileItem struct {
 	Key             string
 	Value           string
 	NeedsResolution bool
-}
-
-type envFileResult struct {
-	Value string
-	Error error
-	Item  *EnvFileItem
-}
-
-func envFileWorker(svc *secretsmanager.Client, jobs <-chan *EnvFileItem, resultChan chan<- *envFileResult) {
-	for item := range jobs {
-		result := &envFileResult{Item: item}
-
-		// Extract the secret name from sm:// reference
-		secretName := strings.TrimPrefix(item.Value, "sm://")
-
-		input := &secretsmanager.GetSecretValueInput{
-			SecretId: &secretName,
-		}
-		getSecret, err := svc.GetSecretValue(context.TODO(), input)
-		if err != nil {
-			result.Error = err
-		} else {
-			result.Value = *getSecret.SecretString
-		}
-		resultChan <- result
-	}
 }
 
 func parseEnvFile(filePath string) ([]*EnvFileItem, error) {
@@ -103,9 +72,16 @@ func parseEnvFile(filePath string) ([]*EnvFileItem, error) {
 func resolveEnvFileItems(items []*EnvFileItem, result *Result) {
 	// Separate items that need AWS resolution from direct values
 	var awsItems []*EnvFileItem
+	secretIDs := []string{}
+	secretIDToKey := make(map[string]string) // Map secretID -> env key
+
 	for _, item := range items {
 		if item.NeedsResolution {
+			// Extract the secret ID from sm:// reference
+			secretID := strings.TrimPrefix(item.Value, "sm://")
 			awsItems = append(awsItems, item)
+			secretIDs = append(secretIDs, secretID)
+			secretIDToKey[secretID] = item.Key
 		} else {
 			// Direct value - add immediately
 			result.AppendItem(item.Key, item.Value)
@@ -117,41 +93,20 @@ func resolveEnvFileItems(items []*EnvFileItem, result *Result) {
 		return
 	}
 
-	// Initialize AWS client for items that need resolution
-	cfg, err := getAwsConfig(awsConfig.WithRetryer(func() aws.Retryer {
-		return retry.AddWithMaxAttempts(retry.NewStandard(), 10)
-	}))
-	if err != nil {
+	// Fetch all secrets using shared batch function
+	secretValues, errors := BatchFetchSecrets(secretIDs, 20)
+
+	// Add errors to result
+	for _, err := range errors {
 		result.AppendError(err)
-		return
-	}
-	svc := secretsmanager.NewFromConfig(cfg)
-
-	numAwsItems := len(awsItems)
-	resultsChan := make(chan *envFileResult, numAwsItems)
-	jobsChan := make(chan *EnvFileItem, numAwsItems)
-
-	for _, item := range awsItems {
-		jobsChan <- item
 	}
 
-	// Boot up 20 workers
-	numWorkers := 20
-	for range numWorkers {
-		go envFileWorker(svc, jobsChan, resultsChan)
-	}
-	close(jobsChan)
-
-	// Collect results
-	for range numAwsItems {
-		getResult := <-resultsChan
-		if getResult.Error != nil {
-			result.AppendError(getResult.Error)
-		} else {
-			result.AppendItem(getResult.Item.Key, getResult.Value)
+	// Add fetched secrets to result
+	for secretID, value := range secretValues {
+		if key, ok := secretIDToKey[secretID]; ok {
+			result.AppendItem(key, value)
 		}
 	}
-	close(resultsChan)
 }
 
 type FileResolver struct{}
