@@ -49,7 +49,7 @@ func parseEnvFile(filePath string) ([]*EnvFileItem, error) {
 
 		// Remove surrounding quotes if present
 		if len(value) >= 2 && ((value[0] == '"' && value[len(value)-1] == '"') ||
-		                        (value[0] == '\'' && value[len(value)-1] == '\'')) {
+			(value[0] == '\'' && value[len(value)-1] == '\'')) {
 			value = value[1 : len(value)-1]
 		}
 
@@ -69,19 +69,21 @@ func parseEnvFile(filePath string) ([]*EnvFileItem, error) {
 	return items, nil
 }
 
-func resolveEnvFileItems(items []*EnvFileItem, result *Result) {
+func resolveEnvFileItems(source *config.Source, items []*EnvFileItem) *Result {
+	result := &Result{Source: source}
+
 	// Separate items that need AWS resolution from direct values
 	var awsItems []*EnvFileItem
-	secretIDs := []string{}
-	secretIDToKey := make(map[string]string) // Map secretID -> env key
+	secretKeys := []*string{}
+	secretKeyToEnvKey := make(map[string]string) // Map secretKey -> env key
 
 	for _, item := range items {
 		if item.NeedsResolution {
-			// Extract the secret ID from sm:// reference
-			secretID := strings.TrimPrefix(item.Value, "sm://")
+			// Extract the secret key from sm:// reference
+			secretKey := strings.TrimPrefix(item.Value, "sm://")
 			awsItems = append(awsItems, item)
-			secretIDs = append(secretIDs, secretID)
-			secretIDToKey[secretID] = item.Key
+			secretKeys = append(secretKeys, &secretKey)
+			secretKeyToEnvKey[secretKey] = item.Key
 		} else {
 			// Direct value - add immediately
 			result.AppendItem(item.Key, item.Value)
@@ -90,23 +92,18 @@ func resolveEnvFileItems(items []*EnvFileItem, result *Result) {
 
 	// If no AWS items, we're done
 	if len(awsItems) == 0 {
-		return
+		return result
+	}
+
+	svc, err := NewSecretsManager(source.URL)
+	if err != nil {
+		result.AppendError(err)
+		return result
 	}
 
 	// Fetch all secrets using shared batch function
-	secretValues, errors := BatchFetchSecrets(secretIDs, 20)
+	return getSecrets(source, svc, secretKeys)
 
-	// Add errors to result
-	for _, err := range errors {
-		result.AppendError(err)
-	}
-
-	// Add fetched secrets to result
-	for secretID, value := range secretValues {
-		if key, ok := secretIDToKey[secretID]; ok {
-			result.AppendItem(key, value)
-		}
-	}
 }
 
 type FileResolver struct{}
@@ -125,7 +122,5 @@ func (f *FileResolver) Resolve(source *config.Source) *Result {
 	}
 
 	// Resolve items (both direct values and AWS secrets)
-	resolveEnvFileItems(items, result)
-
-	return result
+	return resolveEnvFileItems(source, items)
 }

@@ -20,28 +20,23 @@ type ManifestItem struct {
 
 func resolveManifestItems(manifestItems *ManifestItems, result *Result) {
 	// Build list of secret IDs and mapping to env var names
-	secretIDs := make([]string, 0, len(manifestItems.Items))
+	secretKeys := make([]*string, 0, len(manifestItems.Items))
 	secretIDToEnv := make(map[string]string)
 
 	for _, item := range manifestItems.Items {
-		secretIDs = append(secretIDs, item.Name)
+		secretKeys = append(secretKeys, &item.Name)
 		secretIDToEnv[item.Name] = item.Env
 	}
 
-	// Fetch all secrets using shared batch function
-	secretValues, errors := BatchFetchSecrets(secretIDs, 20)
-
-	// Add errors to result
-	for _, err := range errors {
+	svc, err := NewSecretsManager(result.Source.URL)
+	if err != nil {
 		result.AppendError(err)
+		return
 	}
 
-	// Add fetched secrets to result
-	for secretID, value := range secretValues {
-		if envKey, ok := secretIDToEnv[secretID]; ok {
-			result.AppendItem(envKey, value)
-		}
-	}
+	// Fetch all secrets using shared batch function
+	result = getSecrets(result.Source, svc, secretKeys)
+
 }
 
 type ManifestResolver struct{}
