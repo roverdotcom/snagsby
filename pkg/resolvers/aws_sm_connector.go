@@ -11,6 +11,11 @@ import (
 	"github.com/roverdotcom/snagsby/pkg/config"
 )
 
+// SecretValueGetter defines the interface for getting secret values
+type SecretValueGetter interface {
+	GetSecretValue(ctx context.Context, params *secretsmanager.GetSecretValueInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error)
+}
+
 var smConcurrency int
 
 func init() {
@@ -33,7 +38,7 @@ type smMessage struct {
 	IsRecursive bool
 }
 
-func smWorker(jobs <-chan *smMessage, results chan<- *smMessage, svc *secretsmanager.Client) {
+func smWorker(jobs <-chan *smMessage, results chan<- *smMessage, svc SecretValueGetter) {
 	for job := range jobs {
 		sourceURL := job.Source.URL
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -60,7 +65,7 @@ func smWorker(jobs <-chan *smMessage, results chan<- *smMessage, svc *secretsman
 }
 
 // getSecrets handles concurrent retrieval of secrets from secrets manager
-func getSecrets(source *config.Source, svc *secretsmanager.Client, keys []*string) *Result {
+func getSecrets(source *config.Source, svc SecretValueGetter, keys []*string) *Result {
 	jobs := make(chan *smMessage, len(keys))
 	results := make(chan *smMessage, len(keys))
 
