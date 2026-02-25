@@ -87,11 +87,9 @@ func smWorker(jobs <-chan *smMessage, results chan<- *smMessage, svc SecretValue
 }
 
 // getSecrets handles concurrent retrieval of secrets from secrets manager
-func getSecrets(source *config.Source, svc SecretValueGetter, keys []*string) *Result {
+func getSecrets(source *config.Source, svc SecretValueGetter, keys []*string) (map[string]string, []error) {
 	jobs := make(chan *smMessage, len(keys))
 	results := make(chan *smMessage, len(keys))
-
-	fullResult := &Result{Source: source}
 
 	numWorkers := smConcurrency
 	if numWorkers <= 0 {
@@ -109,14 +107,17 @@ func getSecrets(source *config.Source, svc SecretValueGetter, keys []*string) *R
 	}
 	close(jobs)
 
+	secrets := make(map[string]string)
+	var errors []error
+
 	for i := 0; i < len(keys); i++ {
 		result := <-results
 		if result.Error != nil {
-			fullResult.AppendError(result.Error)
+			errors = append(errors, result.Error)
 		} else {
-			fullResult.AppendItem(*result.Name, result.Result)
+			secrets[*result.Name] = result.Result
 		}
 	}
 
-	return fullResult
+	return secrets, errors
 }

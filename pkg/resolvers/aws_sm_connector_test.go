@@ -323,18 +323,18 @@ func TestGetSecrets(t *testing.T) {
 			sourceURL, _ := url.Parse("sm://test")
 			source := &config.Source{URL: sourceURL}
 
-			result := getSecrets(source, mockClient, tt.keys)
+			result, errors := getSecrets(source, mockClient, tt.keys)
 
-			if result.LenItems() != tt.expectedItems {
-				t.Errorf("Expected %d items, got %d", tt.expectedItems, result.LenItems())
+			if len(result) != tt.expectedItems {
+				t.Errorf("Expected %d items, got %d", tt.expectedItems, len(result))
 			}
 
-			if tt.expectedError && !result.HasErrors() {
+			if tt.expectedError && len(errors) == 0 {
 				t.Error("Expected errors but got none")
 			}
 
-			if !tt.expectedError && result.HasErrors() {
-				t.Errorf("Unexpected errors: %v", result.Errors)
+			if !tt.expectedError && len(errors) > 0 {
+				t.Errorf("Unexpected errors: %v", errors)
 			}
 		})
 	}
@@ -388,14 +388,14 @@ func TestGetSecretsConcurrency(t *testing.T) {
 				keys[i] = aws.String("secret" + string(rune('0'+i)))
 			}
 
-			result := getSecrets(source, mockClient, keys)
+			result, errors := getSecrets(source, mockClient, keys)
 
-			if result.LenItems() != tt.numKeys {
-				t.Errorf("Expected %d items, got %d", tt.numKeys, result.LenItems())
+			if len(result) != tt.numKeys {
+				t.Errorf("Expected %d items, got %d", tt.numKeys, len(result))
 			}
 
-			if result.HasErrors() {
-				t.Errorf("Unexpected errors: %v", result.Errors)
+			if len(errors) > 0 {
+				t.Errorf("Unexpected errors: %v", errors)
 			}
 		})
 	}
