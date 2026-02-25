@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/retry"
-	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/roverdotcom/snagsby/pkg/config"
 
@@ -50,38 +47,32 @@ func getSecretValue(svc *secretsmanager.Client, manifestItem *ManifestItem) (str
 	return *getSecret.SecretString, nil
 }
 
-func resolveManifestItems(manifestItems *ManifestItems, result *Result) {
-	cfg, err := getAwsConfig(awsConfig.WithRetryer(func() aws.Retryer {
-		return retry.AddWithMaxAttempts(retry.NewStandard(), 10)
-	}))
+func resolveManifestItems(source *config.Source, manifestItems *ManifestItems, result *Result) {
+	svc, err := NewSecretsManager(source.URL)
 	if err != nil {
 		result.AppendError(err)
 		return
 	}
-	svc := secretsmanager.NewFromConfig(cfg)
+
 	numItems := len(manifestItems.Items)
-	resultsChan := make(chan *manifestResult, numItems)
-	jobsChan := make(chan *ManifestItem, numItems)
-	for _, item := range manifestItems.Items {
-		jobsChan <- item
+	secretKeys := make([]*string, numItems)
+	envVarSecretMap := make(map[string]string)
+
+	for i, item := range manifestItems.Items {
+		secretKeys[i] = &item.Name
+		envVarSecretMap[item.Name] = item.Env
 	}
 
-	// Boot up 20 workers
-	numWorkers := 20
-	for range numWorkers {
-		go manifestWorker(svc, jobsChan, resultsChan)
+	secrets, errors := getSecrets(source, svc, secretKeys)
+	for _, err := range errors {
+		result.AppendError(err)
 	}
-	close(jobsChan)
 
-	for range numItems {
-		getResult := <-resultsChan
-		if getResult.Error != nil {
-			result.AppendError(getResult.Error)
-		} else {
-			result.AppendItem(getResult.Item.Env, getResult.Value)
+	for key, value := range secrets {
+		if envVar, ok := envVarSecretMap[key]; ok {
+			result.AppendItem(envVar, value)
 		}
 	}
-	close(resultsChan)
 }
 
 type ManifestResolver struct{}
@@ -101,7 +92,7 @@ func (s *ManifestResolver) Resolve(source *config.Source) *Result {
 		return result
 	}
 
-	resolveManifestItems(&manifestItems, result)
+	resolveManifestItems(source, &manifestItems, result)
 
 	return result
 }
