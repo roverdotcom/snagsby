@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/retry"
-	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 	"github.com/roverdotcom/snagsby/pkg/config"
@@ -28,20 +26,12 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 	result := &Result{Source: source}
 	sourceURL := source.URL
 	prefix := strings.TrimSuffix(fmt.Sprintf("%s%s", sourceURL.Host, sourceURL.Path), "*")
-	cfg, err := getAwsConfig(awsConfig.WithRetryer(func() aws.Retryer {
-		return retry.AddWithMaxAttempts(retry.NewStandard(), 10)
-	}))
 
+	svc, err := NewSecretsManager(sourceURL)
 	if err != nil {
 		result.AppendError(err)
 		return result
 	}
-
-	region := sourceURL.Query().Get("region")
-	if region != "" {
-		cfg.Region = region
-	}
-	svc := secretsmanager.NewFromConfig(cfg)
 
 	// List secrets that begin with our prefix
 	params := &secretsmanager.ListSecretsInput{

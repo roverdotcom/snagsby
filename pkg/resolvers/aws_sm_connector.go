@@ -2,11 +2,14 @@ package resolvers
 
 import (
 	"context"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
+	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/roverdotcom/snagsby/pkg/config"
 )
@@ -36,6 +39,25 @@ type smMessage struct {
 	Result      string
 	Error       error
 	IsRecursive bool
+}
+
+func NewSecretsManager(sourceURL *url.URL) (*secretsmanager.Client, error) {
+
+	cfg, err := getAwsConfig(awsConfig.WithRetryer(func() aws.Retryer {
+		return retry.AddWithMaxAttempts(retry.NewStandard(), 10)
+	}))
+
+	if err != nil {
+		return nil, err
+	}
+
+	region := sourceURL.Query().Get("region")
+	if region != "" {
+		cfg.Region = region
+	}
+	svc := secretsmanager.NewFromConfig(cfg)
+
+	return svc, nil
 }
 
 func smWorker(jobs <-chan *smMessage, results chan<- *smMessage, svc SecretValueGetter) {
