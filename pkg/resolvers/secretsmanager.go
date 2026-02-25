@@ -59,13 +59,12 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 	}
 
 	secrets, errors := getSecrets(source, svc, secretKeys)
-	if len(errors) > 0 {
-		for _, err := range errors {
-			result.AppendError(err)
-		}
+	for _, err := range errors {
+		result.AppendError(err)
 	}
+
 	for key, value := range secrets {
-		result.AppendItem(key, value)
+		result.AppendItem(s.keyNameFromPrefix(prefix, key), value)
 	}
 
 	return result
