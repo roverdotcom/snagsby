@@ -45,7 +45,8 @@ func getConcurrencyOrDefault(keyLength int) int {
 	getConcurrency, hasSetting := os.LookupEnv("SNAGSBY_SM_CONCURRENCY")
 	if hasSetting {
 		i, err := strconv.Atoi(getConcurrency)
-		if err == nil && i >= 0 {
+		// Concurrency should never be 0 or it will cause the process to deadlock (no background workers)
+		if err == nil && i > 0 {
 			return i
 		}
 	}
@@ -85,12 +86,18 @@ type secretResult struct {
 
 // GetSecrets handles concurrent retrieval of secrets from secrets manager
 func (sm *SecretsManagerConnector) GetSecrets(keys []*string) (map[string]string, []error) {
-	numWorkers := getConcurrencyOrDefault(len(keys))
+	keysLength := len(keys)
+
+	if keysLength == 0 {
+		return map[string]string{}, nil
+	}
+
+	numWorkers := getConcurrencyOrDefault(keysLength)
 
 	// Semaphore to limit concurrency
 	sem := make(chan struct{}, numWorkers)
 
-	resultChan := make(chan secretResult, len(keys))
+	resultChan := make(chan secretResult, keysLength)
 	var wg sync.WaitGroup
 
 	// Launch a goroutine for each key

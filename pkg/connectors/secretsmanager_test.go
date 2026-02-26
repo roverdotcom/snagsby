@@ -292,7 +292,7 @@ func TestGetConcurrencyOrDefault(t *testing.T) {
 			name:      "env var set to 0",
 			envValue:  "0",
 			keyLength: 10,
-			expected:  0,
+			expected:  10,
 		},
 		{
 			name:      "invalid env var - returns keyLength",
@@ -345,39 +345,39 @@ func TestGetConcurrencyOrDefault(t *testing.T) {
 // TestGetSecretsConcurrency tests that concurrency settings are properly used in GetSecrets
 func TestGetSecretsConcurrency(t *testing.T) {
 	tests := []struct {
-		name                 string
-		envValue             string
-		numKeys              int
-		expectedConcurrency  int // What getConcurrencyOrDefault should return
-		expectedMaxWorkers   int // Maximum number of concurrent workers actually processing
+		name                string
+		envValue            string
+		numKeys             int
+		expectedConcurrency int // What getConcurrencyOrDefault should return
+		expectedMaxWorkers  int // Maximum number of concurrent workers actually processing
 	}{
 		{
-			name:                 "no concurrency limit - uses number of keys",
-			envValue:             "",
-			numKeys:              5,
-			expectedConcurrency:  5,
-			expectedMaxWorkers:   5,
+			name:                "no concurrency limit - uses number of keys",
+			envValue:            "",
+			numKeys:             5,
+			expectedConcurrency: 5,
+			expectedMaxWorkers:  5,
 		},
 		{
-			name:                 "concurrency set to 2",
-			envValue:             "2",
-			numKeys:              10,
-			expectedConcurrency:  2,
-			expectedMaxWorkers:   2,
+			name:                "concurrency set to 2",
+			envValue:            "2",
+			numKeys:             10,
+			expectedConcurrency: 2,
+			expectedMaxWorkers:  2,
 		},
 		{
-			name:                 "concurrency set to 1 (sequential)",
-			envValue:             "1",
-			numKeys:              5,
-			expectedConcurrency:  1,
-			expectedMaxWorkers:   1,
+			name:                "concurrency set to 1 (sequential)",
+			envValue:            "1",
+			numKeys:             5,
+			expectedConcurrency: 1,
+			expectedMaxWorkers:  1,
 		},
 		{
-			name:                 "concurrency larger than keys",
-			envValue:             "20",
-			numKeys:              3,
-			expectedConcurrency:  20,
-			expectedMaxWorkers:   3, // Only 3 keys, so at most 3 workers will be active
+			name:                "concurrency larger than keys",
+			envValue:            "20",
+			numKeys:             3,
+			expectedConcurrency: 20,
+			expectedMaxWorkers:  3, // Only 3 keys, so at most 3 workers will be active
 		},
 	}
 
@@ -461,4 +461,3 @@ func TestGetSecretsConcurrency(t *testing.T) {
 		})
 	}
 }
-
