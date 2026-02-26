@@ -1,11 +1,9 @@
 package resolvers
 
 import (
-	"context"
 	"fmt"
 	"os"
 
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/roverdotcom/snagsby/pkg/config"
 
 	"sigs.k8s.io/yaml"
@@ -24,25 +22,8 @@ type ManifestItem struct {
 	Env  string `json:"env"`
 }
 
-type manifestResult struct {
-	Value string
-	Error error
-	Item  *ManifestItem
-}
-
 type ManifestResolver struct {
 	connector manifestSecretsConnector
-}
-
-func getSecretValue(svc *secretsmanager.Client, manifestItem *ManifestItem) (string, error) {
-	input := &secretsmanager.GetSecretValueInput{
-		SecretId: &manifestItem.Name,
-	}
-	getSecret, err := svc.GetSecretValue(context.TODO(), input)
-	if err != nil {
-		return "", err
-	}
-	return *getSecret.SecretString, nil
 }
 
 func (m *ManifestResolver) resolveManifestItems(manifestItems *ManifestItems, result *Result) {
