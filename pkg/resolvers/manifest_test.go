@@ -380,28 +380,43 @@ func TestManifestIntegrationWithResolveSource(t *testing.T) {
 		t.Fatalf("Failed to create test manifest file: %v", err)
 	}
 
-	// Note: This test will fail if AWS credentials are not available or secrets don't exist
-	// We're just testing that the integration works with ResolveSource
+	// Use a mock connector to avoid real AWS calls while exercising manifest resolution
+	mockConnector := &mockManifestConnector{
+		getSecretsFunc: func(keys []*string) (map[string]string, []error) {
+			return map[string]string{
+				"prod/api/database":   "postgres://user:pass@host:5432/db",
+				"prod/api/secret-key": "super-secret-key",
+			}, nil
+		},
+	}
+
+	resolver := &ManifestResolver{
+		connector: mockConnector,
+	}
+
 	sourceURL, err := url.Parse("manifest://" + manifestPath)
 	if err != nil {
 		t.Fatalf("Failed to parse URL: %v", err)
 	}
 
 	source := &config.Source{URL: sourceURL}
-	result := ResolveSource(source)
+	result := resolver.Resolve(source)
 
-	// We expect this to fail in test environment due to missing AWS credentials/secrets
-	// but we verify that the resolver was properly initialized
 	if result == nil {
-		t.Error("Expected result, got nil")
+		t.Fatal("Expected result, got nil")
 	}
 
-	if result.Source != source {
-		t.Error("Expected result.Source to match input source")
+	if len(result.Errors) > 0 {
+		t.Fatalf("Unexpected errors: %v", result.Errors)
 	}
 
-	// In a real environment with valid AWS credentials and existing secrets,
-	// we would check for successful resolution
+	if got := result.Items["DATABASE_URL"]; got != "postgres://user:pass@host:5432/db" {
+		t.Errorf("DATABASE_URL mismatch, got %q", got)
+	}
+
+	if got := result.Items["SECRET_KEY"]; got != "super-secret-key" {
+		t.Errorf("SECRET_KEY mismatch, got %q", got)
+	}
 }
 
 func TestManifestWithSpecialCharacters(t *testing.T) {
