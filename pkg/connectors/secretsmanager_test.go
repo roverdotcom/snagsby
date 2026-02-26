@@ -6,7 +6,9 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
@@ -357,54 +359,183 @@ func TestGetSecrets(t *testing.T) {
 	}
 }
 
-// TestGetSecretsConcurrency tests that concurrency is properly handled
-func TestGetSecretsConcurrency(t *testing.T) {
-	// Save original value and restore after test
-	originalConcurrency := smConcurrency
-	defer func() { smConcurrency = originalConcurrency }()
-
+// TestGetConcurrencyOrDefault tests the GetConcurrencyOrDefault function
+func TestGetConcurrencyOrDefault(t *testing.T) {
 	tests := []struct {
-		name             string
-		smConcurrencyVal int
-		numKeys          int
-		expectedWorkers  int
+		name      string
+		envValue  string
+		keyLength int
+		expected  int
 	}{
 		{
-			name:             "concurrency not set - uses number of keys",
-			smConcurrencyVal: 0,
-			numKeys:          5,
-			expectedWorkers:  5,
+			name:      "no env var set - returns keyLength",
+			envValue:  "",
+			keyLength: 10,
+			expected:  10,
 		},
 		{
-			name:             "concurrency set to 2",
-			smConcurrencyVal: 2,
-			numKeys:          10,
-			expectedWorkers:  2,
+			name:      "valid env var set",
+			envValue:  "5",
+			keyLength: 10,
+			expected:  5,
 		},
 		{
-			name:             "concurrency set to negative - uses number of keys",
-			smConcurrencyVal: -1,
-			numKeys:          3,
-			expectedWorkers:  3,
+			name:      "env var set to 0",
+			envValue:  "0",
+			keyLength: 10,
+			expected:  0,
+		},
+		{
+			name:      "invalid env var - returns keyLength",
+			envValue:  "invalid",
+			keyLength: 8,
+			expected:  8,
+		},
+		{
+			name:      "negative env var - returns keyLength",
+			envValue:  "-1",
+			keyLength: 7,
+			expected:  7,
+		},
+		{
+			name:      "env var larger than keyLength",
+			envValue:  "20",
+			keyLength: 5,
+			expected:  20,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			smConcurrency = tt.smConcurrencyVal
+			// Save and restore environment variable
+			originalEnv, hadEnv := os.LookupEnv("SNAGSBY_SM_CONCURRENCY")
+			defer func() {
+				if hadEnv {
+					os.Setenv("SNAGSBY_SM_CONCURRENCY", originalEnv)
+				} else {
+					os.Unsetenv("SNAGSBY_SM_CONCURRENCY")
+				}
+			}()
 
-			mockClient := &mockSecretsManagerClient{
-				getSecretValueFunc: successBehavior(func(secretId string) string { return "value" }),
+			// Set test environment variable
+			if tt.envValue != "" {
+				os.Setenv("SNAGSBY_SM_CONCURRENCY", tt.envValue)
+			} else {
+				os.Unsetenv("SNAGSBY_SM_CONCURRENCY")
 			}
 
+			result := GetConcurrencyOrDefault(tt.keyLength)
+
+			if result != tt.expected {
+				t.Errorf("Expected %d, got %d", tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestGetSecretsConcurrency tests that concurrency settings are properly used in GetSecrets
+func TestGetSecretsConcurrency(t *testing.T) {
+	tests := []struct {
+		name                 string
+		envValue             string
+		numKeys              int
+		expectedConcurrency  int // What GetConcurrencyOrDefault should return
+		expectedMaxWorkers   int // Maximum number of concurrent workers actually processing
+	}{
+		{
+			name:                 "no concurrency limit - uses number of keys",
+			envValue:             "",
+			numKeys:              5,
+			expectedConcurrency:  5,
+			expectedMaxWorkers:   5,
+		},
+		{
+			name:                 "concurrency set to 2",
+			envValue:             "2",
+			numKeys:              10,
+			expectedConcurrency:  2,
+			expectedMaxWorkers:   2,
+		},
+		{
+			name:                 "concurrency set to 1 (sequential)",
+			envValue:             "1",
+			numKeys:              5,
+			expectedConcurrency:  1,
+			expectedMaxWorkers:   1,
+		},
+		{
+			name:                 "concurrency larger than keys",
+			envValue:             "20",
+			numKeys:              3,
+			expectedConcurrency:  20,
+			expectedMaxWorkers:   3, // Only 3 keys, so at most 3 workers will be active
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Save and restore environment variable
+			originalEnv, hadEnv := os.LookupEnv("SNAGSBY_SM_CONCURRENCY")
+			defer func() {
+				if hadEnv {
+					os.Setenv("SNAGSBY_SM_CONCURRENCY", originalEnv)
+				} else {
+					os.Unsetenv("SNAGSBY_SM_CONCURRENCY")
+				}
+			}()
+
+			// Set test environment variable
+			if tt.envValue != "" {
+				os.Setenv("SNAGSBY_SM_CONCURRENCY", tt.envValue)
+			} else {
+				os.Unsetenv("SNAGSBY_SM_CONCURRENCY")
+			}
+
+			// Verify GetConcurrencyOrDefault returns expected value
+			actualConcurrency := GetConcurrencyOrDefault(tt.numKeys)
+			if actualConcurrency != tt.expectedConcurrency {
+				t.Errorf("GetConcurrencyOrDefault(%d) = %d, expected %d", tt.numKeys, actualConcurrency, tt.expectedConcurrency)
+			}
+
+			// Create keys
 			keys := make([]*string, tt.numKeys)
 			for i := 0; i < tt.numKeys; i++ {
-				keys[i] = aws.String("secret" + string(rune('0'+i)))
+				keys[i] = aws.String("secret" + strconv.Itoa(i))
+			}
+
+			// Track concurrent calls
+			var concurrentCalls int32
+			var maxConcurrent int32
+
+			mockClient := &mockSecretsManagerClient{
+				getSecretValueFunc: func(ctx context.Context, params *secretsmanager.GetSecretValueInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error) {
+					// Atomically increment concurrent calls
+					current := atomic.AddInt32(&concurrentCalls, 1)
+
+					// Track max concurrent
+					for {
+						max := atomic.LoadInt32(&maxConcurrent)
+						if current <= max || atomic.CompareAndSwapInt32(&maxConcurrent, max, current) {
+							break
+						}
+					}
+
+					// Simulate some work
+					time.Sleep(10 * time.Millisecond)
+
+					// Decrement
+					atomic.AddInt32(&concurrentCalls, -1)
+
+					return &secretsmanager.GetSecretValueOutput{
+						SecretString: aws.String("value"),
+					}, nil
+				},
 			}
 
 			sm := GetMockSecretsManagerConnectorWithMocks(mockClient)
 			result, errors := sm.GetSecrets(keys)
 
+			// Verify all secrets were retrieved
 			if len(result) != tt.numKeys {
 				t.Errorf("Expected %d items, got %d", tt.numKeys, len(result))
 			}
@@ -412,65 +543,11 @@ func TestGetSecretsConcurrency(t *testing.T) {
 			if len(errors) > 0 {
 				t.Errorf("Unexpected errors: %v", errors)
 			}
-		})
-	}
-}
 
-// TestSMConcurrencyInit tests the init function behavior with environment variables
-func TestSMConcurrencyInit(t *testing.T) {
-	tests := []struct {
-		name     string
-		envValue string
-		expected int
-	}{
-		{
-			name:     "valid positive integer",
-			envValue: "5",
-			expected: 5,
-		},
-		{
-			name:     "zero value",
-			envValue: "0",
-			expected: 0,
-		},
-		{
-			name:     "invalid value",
-			envValue: "invalid",
-			expected: 0, // Should not change from default
-		},
-		{
-			name:     "negative value",
-			envValue: "-1",
-			expected: 0, // Should not change from default (negative not allowed)
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Save and restore original value
-			originalValue := smConcurrency
-			defer func() { smConcurrency = originalValue }()
-
-			// Reset to 0
-			smConcurrency = 0
-
-			// Set environment variable
-			if tt.envValue != "" {
-				os.Setenv("SNAGSBY_SM_CONCURRENCY", tt.envValue)
-				defer os.Unsetenv("SNAGSBY_SM_CONCURRENCY")
-			}
-
-			// Simulate the init logic
-			getConcurrency, hasSetting := os.LookupEnv("SNAGSBY_SM_CONCURRENCY")
-			if hasSetting {
-				i, err := strconv.Atoi(getConcurrency)
-				if err == nil && i >= 0 {
-					smConcurrency = i
-				}
-			}
-
-			if smConcurrency != tt.expected {
-				t.Errorf("Expected smConcurrency to be %d, got %d", tt.expected, smConcurrency)
+			// Verify concurrency was respected
+			finalMax := atomic.LoadInt32(&maxConcurrent)
+			if tt.expectedMaxWorkers > 0 && finalMax > int32(tt.expectedMaxWorkers) {
+				t.Errorf("Expected max %d concurrent workers, but saw %d", tt.expectedMaxWorkers, finalMax)
 			}
 		})
 	}

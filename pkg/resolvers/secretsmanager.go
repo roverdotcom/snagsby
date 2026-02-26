@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/roverdotcom/snagsby/pkg/clients"
 	"github.com/roverdotcom/snagsby/pkg/config"
+	"github.com/roverdotcom/snagsby/pkg/parsers"
 )
 
 type secretsManagerConnector interface {
@@ -59,8 +59,7 @@ func (s *SecretsManagerResolver) resolveSingle(source *config.Source) *Result {
 		return result
 	}
 
-	// TODO - ReadJSONString does not belong to AWS clients
-	out, err := clients.ReadJSONString(secretString)
+	out, err := parsers.ReadJSONString(secretString)
 	if err != nil {
 		result.AppendError(err)
 		return result

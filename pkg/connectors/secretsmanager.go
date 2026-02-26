@@ -39,18 +39,16 @@ func NewSecretsManagerConnector(source *config.Source) (*SecretsManagerConnector
 	return &SecretsManagerConnector{secretsmanagerClient: secretsManagerClient, source: source}, nil
 }
 
-var smConcurrency int
-
-// TODO - Move this to just a function that gets concurrency on demand. No need for init
-func init() {
+func GetConcurrencyOrDefault(keyLength int) int {
 	// Pull concurrency settings
 	getConcurrency, hasSetting := os.LookupEnv("SNAGSBY_SM_CONCURRENCY")
 	if hasSetting {
 		i, err := strconv.Atoi(getConcurrency)
 		if err == nil && i >= 0 {
-			smConcurrency = i
+			return i
 		}
 	}
+	return keyLength
 }
 
 // Concurrency work
@@ -92,10 +90,7 @@ func (sm *SecretsManagerConnector) GetSecrets(keys []*string) (map[string]string
 	jobs := make(chan *smMessage, len(keys))
 	results := make(chan *smMessage, len(keys))
 
-	numWorkers := smConcurrency
-	if numWorkers <= 0 {
-		numWorkers = len(keys)
-	}
+	numWorkers := GetConcurrencyOrDefault(len(keys))
 
 	// Start workers
 	for w := 0; w < numWorkers; w++ {
