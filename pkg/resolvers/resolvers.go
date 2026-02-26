@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/roverdotcom/snagsby/pkg/config"
+	"github.com/roverdotcom/snagsby/pkg/connectors"
 )
 
 // KeyRegexp is the regular expression that keys must adhere to
@@ -72,13 +73,18 @@ func (r *Result) LenItems() int {
 func ResolveSource(source *config.Source) *Result {
 	sourceURL := source.URL
 	var s Resolver
-	if sourceURL.Scheme == "sm" {
-		s = &SecretsManagerResolver{}
-	} else if sourceURL.Scheme == "s3" {
+	switch sourceURL.Scheme {
+	case "sm":
+		connector, err := connectors.NewSecretsManagerConnector(source)
+		if err != nil {
+			return &Result{Source: source, Errors: []error{err}}
+		}
+		s = &SecretsManagerResolver{connector: connector}
+	case "s3":
 		s = &S3ManagerResolver{}
-	} else if sourceURL.Scheme == "manifest" {
+	case "manifest":
 		s = &ManifestResolver{}
-	} else {
+	default:
 		return &Result{Source: source, Errors: []error{fmt.Errorf("No resolver found for scheme %s", sourceURL.Scheme)}}
 	}
 

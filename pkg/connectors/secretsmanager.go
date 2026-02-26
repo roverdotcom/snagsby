@@ -151,3 +151,30 @@ func (s *SecretsManagerConnector) ListSecrets(prefix string) ([]*string, error) 
 
 	return secretKeys, nil
 }
+
+// GetSecret retrieves a single secret value
+func (sm *SecretsManagerConnector) GetSecret(secretName string) (string, error) {
+	sourceURL := sm.source.URL
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	input := &secretsmanager.GetSecretValueInput{
+		SecretId: aws.String(secretName),
+	}
+	versionStage := sourceURL.Query().Get("version-stage")
+	if versionStage != "" {
+		input.VersionStage = aws.String(versionStage)
+	}
+
+	versionID := sourceURL.Query().Get("version-id")
+	if versionID != "" {
+		input.VersionId = aws.String(versionID)
+	}
+
+	res, err := sm.secretsmanagerClient.GetSecretValue(ctx, input)
+	if err != nil {
+		return "", err
+	}
+
+	return *res.SecretString, nil
+}

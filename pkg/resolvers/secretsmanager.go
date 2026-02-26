@@ -1,20 +1,24 @@
 package resolvers
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/roverdotcom/snagsby/pkg/clients"
 	"github.com/roverdotcom/snagsby/pkg/config"
-	"github.com/roverdotcom/snagsby/pkg/connectors"
 )
 
 // SecretsManagerResolver handles secrets manager resolution
-type SecretsManagerResolver struct{}
+type SecretsManagerConnector interface {
+	ListSecrets(prefix string) ([]*string, error)
+	GetSecret(secretName string) (string, error)
+	GetSecrets(keys []*string) (map[string]string, []error)
+}
+
+type SecretsManagerResolver struct {
+	connector SecretsManagerConnector
+}
 
 func (s *SecretsManagerResolver) keyNameFromPrefix(prefix, name string) string {
 	key := strings.TrimPrefix(name, prefix)
@@ -28,17 +32,12 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 	sourceURL := source.URL
 	prefix := strings.TrimSuffix(fmt.Sprintf("%s%s", sourceURL.Host, sourceURL.Path), "*")
 
-	smConnector, err := connectors.NewSecretsManagerConnector(source)
+	secretKeys, err := s.connector.ListSecrets(prefix)
 	if err != nil {
 		result.AppendError(err)
 		return result
 	}
-	secretKeys, err := smConnector.ListSecrets(prefix)
-	if err != nil {
-		result.AppendError(err)
-		return result
-	}
-	secrets, errors := smConnector.GetSecrets(secretKeys)
+	secrets, errors := s.connector.GetSecrets(secretKeys)
 	for _, err := range errors {
 		result.AppendError(err)
 	}
@@ -50,45 +49,19 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 	return result
 }
 
-// TODO - See how to clean this up
 func (s *SecretsManagerResolver) resolveSingle(source *config.Source) *Result {
 	result := &Result{Source: source}
 	sourceURL := source.URL
 
-	cfg, err := clients.GetAwsConfig()
-
-	if err != nil {
-		result.AppendError(err)
-		return result
-	}
-
-	region := sourceURL.Query().Get("region")
-	if region != "" {
-		cfg.Region = region
-	}
-	svc := secretsmanager.NewFromConfig(cfg)
-
 	secretName := strings.Join([]string{sourceURL.Host, sourceURL.Path}, "")
-	input := &secretsmanager.GetSecretValueInput{
-		SecretId: aws.String(secretName),
-	}
-	versionStage := sourceURL.Query().Get("version-stage")
-	if versionStage != "" {
-		input.VersionStage = aws.String(versionStage)
-	}
-
-	versionID := sourceURL.Query().Get("version-id")
-	if versionID != "" {
-		input.VersionId = aws.String(versionID)
-	}
-	res, err := svc.GetSecretValue(context.TODO(), input)
+	secretString, err := s.connector.GetSecret(secretName)
 	if err != nil {
 		result.AppendError(err)
 		return result
 	}
 
 	// TODO - ReadJSONString does not belong to AWS clients
-	out, err := clients.ReadJSONString(*res.SecretString)
+	out, err := clients.ReadJSONString(secretString)
 	if err != nil {
 		result.AppendError(err)
 		return result
