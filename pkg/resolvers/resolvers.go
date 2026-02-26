@@ -83,7 +83,13 @@ func ResolveSource(source *config.Source) *Result {
 	case "s3":
 		s = &S3ManagerResolver{}
 	case "manifest":
-		s = &ManifestResolver{}
+		connector, err := connectors.NewSecretsManagerConnector(source)
+		if err != nil {
+			return &Result{Source: source, Errors: []error{err}}
+		}
+		s = &ManifestResolver{
+			connector: connector,
+		}
 	default:
 		return &Result{Source: source, Errors: []error{fmt.Errorf("No resolver found for scheme %s", sourceURL.Scheme)}}
 	}

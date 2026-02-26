@@ -9,15 +9,14 @@ import (
 	"github.com/roverdotcom/snagsby/pkg/config"
 )
 
-// SecretsManagerResolver handles secrets manager resolution
-type SecretsManagerConnector interface {
+type secretsManagerConnector interface {
 	ListSecrets(prefix string) ([]*string, error)
 	GetSecret(secretName string) (string, error)
 	GetSecrets(keys []*string) (map[string]string, []error)
 }
 
 type SecretsManagerResolver struct {
-	connector SecretsManagerConnector
+	connector secretsManagerConnector
 }
 
 func (s *SecretsManagerResolver) keyNameFromPrefix(prefix, name string) string {

@@ -7,10 +7,13 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/roverdotcom/snagsby/pkg/config"
-	"github.com/roverdotcom/snagsby/pkg/connectors"
 
 	"sigs.k8s.io/yaml"
 )
+
+type manifestSecretsConnector interface {
+	GetSecrets(keys []*string) (map[string]string, []error)
+}
 
 type ManifestItems struct {
 	Items []*ManifestItem
@@ -27,14 +30,8 @@ type manifestResult struct {
 	Item  *ManifestItem
 }
 
-func manifestWorker(svc *secretsmanager.Client, jobs <-chan *ManifestItem, resultChan chan<- *manifestResult) {
-	for manifestItem := range jobs {
-		result := &manifestResult{Item: manifestItem}
-		value, err := getSecretValue(svc, manifestItem)
-		result.Error = err
-		result.Value = value
-		resultChan <- result
-	}
+type ManifestResolver struct {
+	connector manifestSecretsConnector
 }
 
 func getSecretValue(svc *secretsmanager.Client, manifestItem *ManifestItem) (string, error) {
@@ -48,12 +45,7 @@ func getSecretValue(svc *secretsmanager.Client, manifestItem *ManifestItem) (str
 	return *getSecret.SecretString, nil
 }
 
-func resolveManifestItems(source *config.Source, manifestItems *ManifestItems, result *Result) {
-	smConnector, err := connectors.NewSecretsManagerConnector(source)
-	if err != nil {
-		result.AppendError(err)
-		return
-	}
+func (m *ManifestResolver) resolveManifestItems(manifestItems *ManifestItems, result *Result) {
 
 	numItems := len(manifestItems.Items)
 	secretKeys := make([]*string, numItems)
@@ -64,7 +56,7 @@ func resolveManifestItems(source *config.Source, manifestItems *ManifestItems, r
 		envVarSecretMap[item.Name] = item.Env
 	}
 
-	secrets, errors := smConnector.GetSecrets(secretKeys)
+	secrets, errors := m.connector.GetSecrets(secretKeys)
 	for _, err := range errors {
 		result.AppendError(err)
 	}
@@ -75,8 +67,6 @@ func resolveManifestItems(source *config.Source, manifestItems *ManifestItems, r
 		}
 	}
 }
-
-type ManifestResolver struct{}
 
 func (s *ManifestResolver) Resolve(source *config.Source) *Result {
 	result := &Result{Source: source}
@@ -93,7 +83,7 @@ func (s *ManifestResolver) Resolve(source *config.Source) *Result {
 		return result
 	}
 
-	resolveManifestItems(source, &manifestItems, result)
+	s.resolveManifestItems(&manifestItems, result)
 
 	return result
 }
