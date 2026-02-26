@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -51,67 +52,75 @@ func getConcurrencyOrDefault(keyLength int) int {
 	return keyLength
 }
 
-// Concurrency work
-type smMessage struct {
-	Name        *string
-	Result      string
-	Error       error
-	IsRecursive bool
-}
+// fetchSecretValue retrieves a single secret value with version control
+func (sm *SecretsManagerConnector) fetchSecretValue(secretName *string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-func (sm *SecretsManagerConnector) smWorker(jobs <-chan *smMessage, results chan<- *smMessage) {
-	for job := range jobs {
-		sourceURL := sm.source.URL
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		input := &secretsmanager.GetSecretValueInput{
-			SecretId: job.Name,
-		}
-		versionStage := sourceURL.Query().Get("version-stage")
-		if versionStage != "" {
-			input.VersionStage = aws.String(versionStage)
-		}
-		versionID := sourceURL.Query().Get("version-id")
-		if versionID != "" {
-			input.VersionId = aws.String(versionID)
-		}
-		getSecret, err := sm.secretsmanagerClient.GetSecretValue(ctx, input)
-		if err != nil {
-			job.Error = err
-		} else {
-			job.Result = *getSecret.SecretString
-		}
-		results <- job
+	input := &secretsmanager.GetSecretValueInput{
+		SecretId: secretName,
 	}
+
+	sourceURL := sm.source.URL
+	if versionStage := sourceURL.Query().Get("version-stage"); versionStage != "" {
+		input.VersionStage = aws.String(versionStage)
+	}
+	if versionID := sourceURL.Query().Get("version-id"); versionID != "" {
+		input.VersionId = aws.String(versionID)
+	}
+
+	getSecret, err := sm.secretsmanagerClient.GetSecretValue(ctx, input)
+	if err != nil {
+		return "", err
+	}
+
+	return *getSecret.SecretString, nil
 }
 
-// getSecrets handles concurrent retrieval of secrets from secrets manager
-func (sm *SecretsManagerConnector) GetSecrets(keys []*string) (map[string]string, []error) {
-	jobs := make(chan *smMessage, len(keys))
-	results := make(chan *smMessage, len(keys))
+type secretResult struct {
+	name  string
+	value string
+	err   error
+}
 
+// GetSecrets handles concurrent retrieval of secrets from secrets manager
+func (sm *SecretsManagerConnector) GetSecrets(keys []*string) (map[string]string, []error) {
 	numWorkers := getConcurrencyOrDefault(len(keys))
 
-	// Start workers
-	for w := 0; w < numWorkers; w++ {
-		go sm.smWorker(jobs, results)
-	}
+	// Semaphore to limit concurrency
+	sem := make(chan struct{}, numWorkers)
 
-	// Send jobs
+	resultChan := make(chan secretResult, len(keys))
+	var wg sync.WaitGroup
+
+	// Launch a goroutine for each key
 	for _, key := range keys {
-		jobs <- &smMessage{Name: key}
-	}
-	close(jobs)
+		wg.Add(1)
+		go func(k *string) {
+			defer wg.Done()
 
+			sem <- struct{}{}        // Acquire semaphore
+			defer func() { <-sem }() // Release semaphore
+
+			val, err := sm.fetchSecretValue(k)
+			resultChan <- secretResult{name: *k, value: val, err: err}
+		}(key)
+	}
+
+	// Close results when all goroutines finish
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	// Collect results
 	secrets := make(map[string]string)
 	var errors []error
-
-	for i := 0; i < len(keys); i++ {
-		result := <-results
-		if result.Error != nil {
-			errors = append(errors, result.Error)
+	for r := range resultChan {
+		if r.err != nil {
+			errors = append(errors, r.err)
 		} else {
-			secrets[*result.Name] = result.Result
+			secrets[r.name] = r.value
 		}
 	}
 
@@ -148,27 +157,5 @@ func (s *SecretsManagerConnector) ListSecrets(prefix string) ([]*string, error) 
 
 // GetSecret retrieves a single secret value
 func (sm *SecretsManagerConnector) GetSecret(secretName string) (string, error) {
-	sourceURL := sm.source.URL
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	input := &secretsmanager.GetSecretValueInput{
-		SecretId: aws.String(secretName),
-	}
-	versionStage := sourceURL.Query().Get("version-stage")
-	if versionStage != "" {
-		input.VersionStage = aws.String(versionStage)
-	}
-
-	versionID := sourceURL.Query().Get("version-id")
-	if versionID != "" {
-		input.VersionId = aws.String(versionID)
-	}
-
-	res, err := sm.secretsmanagerClient.GetSecretValue(ctx, input)
-	if err != nil {
-		return "", err
-	}
-
-	return *res.SecretString, nil
+	return sm.fetchSecretValue(aws.String(secretName))
 }

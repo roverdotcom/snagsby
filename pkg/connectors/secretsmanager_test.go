@@ -95,77 +95,8 @@ func errorBehavior(err error) mockAWSSecretsManagerBehavior {
 	})
 }
 
-// TestSMWorker tests the smWorker function
-func TestSMWorker(t *testing.T) {
-	tests := []struct {
-		name           string
-		secretName     string
-		secretValue    string
-		mockError      error
-		expectedError  bool
-		expectedResult string
-	}{
-		{
-			name:           "successful secret retrieval",
-			secretName:     "test-secret",
-			secretValue:    "secret-value",
-			mockError:      nil,
-			expectedError:  false,
-			expectedResult: "secret-value",
-		},
-		{
-			name:          "failed secret retrieval",
-			secretName:    "test-secret",
-			secretValue:   "",
-			mockError:     errors.New("secret not found"),
-			expectedError: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			// Create mock client
-			mockClient := makeMockSecretsManagerClient(tt.secretValue, tt.mockError)
-
-			sm := GetMockSecretsManagerConnectorWithMocks(mockClient)
-
-			// Create channels
-			jobs := make(chan *smMessage, 1)
-			results := make(chan *smMessage, 1)
-
-			// Start worker
-			go sm.smWorker(jobs, results)
-
-			// Send job
-			secretName := tt.secretName
-			jobs <- &smMessage{
-				Name: &secretName,
-			}
-			close(jobs)
-
-			// Get result
-			result := <-results
-
-			// Verify
-			if tt.expectedError {
-				if result.Error == nil {
-					t.Error("Expected error but got none")
-				}
-			} else {
-				if result.Error != nil {
-					t.Errorf("Unexpected error: %v", result.Error)
-				}
-				if result.Result != tt.expectedResult {
-					t.Errorf("Expected result %s, got %s", tt.expectedResult, result.Result)
-				}
-			}
-		})
-	}
-}
-
-// TestSMWorkerWithVersionStage tests that version-stage query parameter is passed correctly
-func TestSMWorkerWithVersionStage(t *testing.T) {
+// TestGetSecretWithVersionStage tests that version-stage query parameter is passed correctly
+func TestGetSecretWithVersionStage(t *testing.T) {
 	versionStageReceived := ""
 	mockClient := &mockSecretsManagerClient{
 		getSecretValueFunc: func(ctx context.Context, params *secretsmanager.GetSecretValueInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error) {
@@ -180,28 +111,23 @@ func TestSMWorkerWithVersionStage(t *testing.T) {
 
 	sourceURL, _ := url.Parse("sm://test?version-stage=AWSCURRENT")
 	source := &config.Source{URL: sourceURL}
-
-	jobs := make(chan *smMessage, 1)
-	results := make(chan *smMessage, 1)
-
 	sm := &SecretsManagerConnector{source: source, secretsmanagerClient: mockClient}
-	go sm.smWorker(jobs, results)
 
-	secretName := "test-secret"
-	jobs <- &smMessage{
-		Name: &secretName,
+	result, err := sm.GetSecret("test-secret")
+
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
 	}
-	close(jobs)
-
-	<-results
-
+	if result != "test-value" {
+		t.Errorf("Expected 'test-value', got %s", result)
+	}
 	if versionStageReceived != "AWSCURRENT" {
 		t.Errorf("Expected version-stage AWSCURRENT, got %s", versionStageReceived)
 	}
 }
 
-// TestSMWorkerWithVersionID tests that version-id query parameter is passed correctly
-func TestSMWorkerWithVersionID(t *testing.T) {
+// TestGetSecretWithVersionID tests that version-id query parameter is passed correctly
+func TestGetSecretWithVersionID(t *testing.T) {
 	versionIDReceived := ""
 	mockClient := &mockSecretsManagerClient{
 		getSecretValueFunc: func(ctx context.Context, params *secretsmanager.GetSecretValueInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error) {
@@ -216,29 +142,23 @@ func TestSMWorkerWithVersionID(t *testing.T) {
 
 	sourceURL, _ := url.Parse("sm://test?version-id=abc123")
 	source := &config.Source{URL: sourceURL}
+	sm := &SecretsManagerConnector{source: source, secretsmanagerClient: mockClient}
 
-	jobs := make(chan *smMessage, 1)
-	results := make(chan *smMessage, 1)
+	result, err := sm.GetSecret("test-secret")
 
-	sm := &SecretsManagerConnector{secretsmanagerClient: mockClient,
-		source: source}
-	go sm.smWorker(jobs, results)
-
-	secretName := "test-secret"
-	jobs <- &smMessage{
-		Name: &secretName,
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
 	}
-	close(jobs)
-
-	<-results
-
+	if result != "test-value" {
+		t.Errorf("Expected 'test-value', got %s", result)
+	}
 	if versionIDReceived != "abc123" {
 		t.Errorf("Expected version-id abc123, got %s", versionIDReceived)
 	}
 }
 
-// TestSMWorkerWithErrorBehavior tests smWorker using errorBehavior helper
-func TestSMWorkerWithErrorBehavior(t *testing.T) {
+// TestGetSecretErrors tests error handling in GetSecret
+func TestGetSecretErrors(t *testing.T) {
 	tests := []struct {
 		name          string
 		mockBehavior  mockAWSSecretsManagerBehavior
@@ -261,25 +181,14 @@ func TestSMWorkerWithErrorBehavior(t *testing.T) {
 			mockClient := &mockSecretsManagerClient{
 				getSecretValueFunc: tt.mockBehavior,
 			}
-
-			jobs := make(chan *smMessage, 1)
-			results := make(chan *smMessage, 1)
-
 			sm := GetMockSecretsManagerConnectorWithMocks(mockClient)
-			go sm.smWorker(jobs, results)
 
-			secretName := "test-secret"
-			jobs <- &smMessage{
-				Name: &secretName,
-			}
-			close(jobs)
+			_, err := sm.GetSecret("test-secret")
 
-			result := <-results
-
-			if result.Error == nil {
+			if err == nil {
 				t.Error("Expected error but got none")
-			} else if result.Error.Error() != tt.expectedError {
-				t.Errorf("Expected error '%s', got '%s'", tt.expectedError, result.Error.Error())
+			} else if err.Error() != tt.expectedError {
+				t.Errorf("Expected error '%s', got '%s'", tt.expectedError, err.Error())
 			}
 		})
 	}
@@ -553,27 +462,3 @@ func TestGetSecretsConcurrency(t *testing.T) {
 	}
 }
 
-// TestSMMessageStruct tests the smMessage structure
-func TestSMMessageStruct(t *testing.T) {
-	secretName := "test-secret"
-
-	msg := &smMessage{
-		Name:        &secretName,
-		Result:      "test-result",
-		Error:       errors.New("test error"),
-		IsRecursive: true,
-	}
-
-	if *msg.Name != secretName {
-		t.Error("Name not set correctly")
-	}
-	if msg.Result != "test-result" {
-		t.Error("Result not set correctly")
-	}
-	if msg.Error == nil || msg.Error.Error() != "test error" {
-		t.Error("Error not set correctly")
-	}
-	if !msg.IsRecursive {
-		t.Error("IsRecursive not set correctly")
-	}
-}
