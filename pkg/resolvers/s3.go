@@ -15,7 +15,7 @@ import (
 // S3ManagerResolver handles s3 resolution
 type S3ManagerResolver struct{}
 
-func (s *S3ManagerResolver) SanitizeKey(key string) string {
+func (s *S3ManagerResolver) sanitizeKey(key string) string {
 	// Strip only the leading slash
 	m := regexp.MustCompile(`^/`)
 	return m.ReplaceAllString(key, "")
@@ -41,7 +41,7 @@ func (s *S3ManagerResolver) Resolve(source *config.Source) *Result {
 	svc := s3.NewFromConfig(cfg)
 	res, s3err := svc.GetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String(sourceURL.Host),
-		Key:    aws.String(s.SanitizeKey(sourceURL.Path)),
+		Key:    aws.String(s.sanitizeKey(sourceURL.Path)),
 	})
 
 	if s3err != nil {

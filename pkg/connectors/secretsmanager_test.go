@@ -424,7 +424,7 @@ func TestGetConcurrencyOrDefault(t *testing.T) {
 				os.Unsetenv("SNAGSBY_SM_CONCURRENCY")
 			}
 
-			result := GetConcurrencyOrDefault(tt.keyLength)
+			result := getConcurrencyOrDefault(tt.keyLength)
 
 			if result != tt.expected {
 				t.Errorf("Expected %d, got %d", tt.expected, result)
@@ -439,7 +439,7 @@ func TestGetSecretsConcurrency(t *testing.T) {
 		name                 string
 		envValue             string
 		numKeys              int
-		expectedConcurrency  int // What GetConcurrencyOrDefault should return
+		expectedConcurrency  int // What getConcurrencyOrDefault should return
 		expectedMaxWorkers   int // Maximum number of concurrent workers actually processing
 	}{
 		{
@@ -491,10 +491,10 @@ func TestGetSecretsConcurrency(t *testing.T) {
 				os.Unsetenv("SNAGSBY_SM_CONCURRENCY")
 			}
 
-			// Verify GetConcurrencyOrDefault returns expected value
-			actualConcurrency := GetConcurrencyOrDefault(tt.numKeys)
+			// Verify getConcurrencyOrDefault returns expected value
+			actualConcurrency := getConcurrencyOrDefault(tt.numKeys)
 			if actualConcurrency != tt.expectedConcurrency {
-				t.Errorf("GetConcurrencyOrDefault(%d) = %d, expected %d", tt.numKeys, actualConcurrency, tt.expectedConcurrency)
+				t.Errorf("getConcurrencyOrDefault(%d) = %d, expected %d", tt.numKeys, actualConcurrency, tt.expectedConcurrency)
 			}
 
 			// Create keys

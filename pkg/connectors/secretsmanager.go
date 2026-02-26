@@ -39,7 +39,7 @@ func NewSecretsManagerConnector(source *config.Source) (*SecretsManagerConnector
 	return &SecretsManagerConnector{secretsmanagerClient: secretsManagerClient, source: source}, nil
 }
 
-func GetConcurrencyOrDefault(keyLength int) int {
+func getConcurrencyOrDefault(keyLength int) int {
 	// Pull concurrency settings
 	getConcurrency, hasSetting := os.LookupEnv("SNAGSBY_SM_CONCURRENCY")
 	if hasSetting {
@@ -90,7 +90,7 @@ func (sm *SecretsManagerConnector) GetSecrets(keys []*string) (map[string]string
 	jobs := make(chan *smMessage, len(keys))
 	results := make(chan *smMessage, len(keys))
 
-	numWorkers := GetConcurrencyOrDefault(len(keys))
+	numWorkers := getConcurrencyOrDefault(len(keys))
 
 	// Start workers
 	for w := 0; w < numWorkers; w++ {
