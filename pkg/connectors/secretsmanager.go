@@ -32,7 +32,7 @@ type SecretsManagerConnector struct {
 }
 
 func NewSecretsManagerConnector(source *config.Source) (*SecretsManagerConnector, error) {
-	secretsManagerClient, err := clients.NewSecretsManager(source.URL)
+	secretsManagerClient, err := clients.NewSecretsManagerClient(source.URL)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,6 @@ func (sm *SecretsManagerConnector) GetSecrets(keys []*string) (map[string]string
 	}
 
 	// Send jobs
-	// smMessage might not need source because it is part of the struct already
 	for _, key := range keys {
 		jobs <- &smMessage{Name: key}
 	}

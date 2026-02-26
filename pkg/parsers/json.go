@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-// TODO -0 Is this part of AWS?
 func ReadJSONString(input string) (map[string]string, error) {
 	var f map[string]any
 	out := map[string]string{}

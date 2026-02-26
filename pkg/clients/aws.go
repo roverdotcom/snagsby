@@ -21,7 +21,7 @@ func GetAwsConfig(optFns ...func(*config.LoadOptions) error) (aws.Config, error)
 	return config.LoadDefaultConfig(context.TODO(), optFns...)
 }
 
-func NewSecretsManager(sourceURL *url.URL) (*secretsmanager.Client, error) {
+func NewSecretsManagerClient(sourceURL *url.URL) (*secretsmanager.Client, error) {
 
 	cfg, err := GetAwsConfig(awsConfig.WithRetryer(func() aws.Retryer {
 		return retry.AddWithMaxAttempts(retry.NewStandard(), 10)
