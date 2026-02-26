@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -84,6 +83,18 @@ type secretResult struct {
 	err   error
 }
 
+// worker processes secret fetch requests from the jobs channel
+func (sm *SecretsManagerConnector) worker(jobs <-chan string, results chan<- secretResult) {
+	for secretName := range jobs {
+		value, err := sm.fetchSecretValue(&secretName)
+		results <- secretResult{
+			name:  secretName,
+			value: value,
+			err:   err,
+		}
+	}
+}
+
 // GetSecrets handles concurrent retrieval of secrets from secrets manager
 func (sm *SecretsManagerConnector) GetSecrets(keys []*string) (map[string]string, []error) {
 	keysLength := len(keys)
@@ -94,40 +105,29 @@ func (sm *SecretsManagerConnector) GetSecrets(keys []*string) (map[string]string
 
 	numWorkers := getConcurrencyOrDefault(keysLength)
 
-	// Semaphore to limit concurrency
-	sem := make(chan struct{}, numWorkers)
+	jobs := make(chan string, keysLength)
+	results := make(chan secretResult, keysLength)
 
-	resultChan := make(chan secretResult, keysLength)
-	var wg sync.WaitGroup
-
-	// Launch a goroutine for each key
-	for _, key := range keys {
-		wg.Add(1)
-		go func(k *string) {
-			defer wg.Done()
-
-			sem <- struct{}{}        // Acquire semaphore
-			defer func() { <-sem }() // Release semaphore
-
-			val, err := sm.fetchSecretValue(k)
-			resultChan <- secretResult{name: *k, value: val, err: err}
-		}(key)
+	// Start worker goroutines
+	for w := 0; w < numWorkers; w++ {
+		go sm.worker(jobs, results)
 	}
 
-	// Close results when all goroutines finish
-	go func() {
-		wg.Wait()
-		close(resultChan)
-	}()
+	// Send jobs
+	for _, key := range keys {
+		jobs <- *key
+	}
+	close(jobs)
 
 	// Collect results
 	secrets := make(map[string]string)
 	var errors []error
-	for r := range resultChan {
-		if r.err != nil {
-			errors = append(errors, r.err)
+	for i := 0; i < keysLength; i++ {
+		result := <-results
+		if result.err != nil {
+			errors = append(errors, result.err)
 		} else {
-			secrets[r.name] = r.value
+			secrets[result.name] = result.value
 		}
 	}
 
