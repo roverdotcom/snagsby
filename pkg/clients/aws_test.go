@@ -1,4 +1,4 @@
-package resolvers
+package clients
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 
 func TestReadJSONString(t *testing.T) {
 	jsonStr := `{"hello": "world", "test": 12, "bool": false}`
-	json, err := readJSONString(jsonStr)
+	json, err := ReadJSONString(jsonStr)
 	if err != nil ||
 		json["HELLO"] != "world" ||
 		json["TEST"] != "12" ||

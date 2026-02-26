@@ -7,6 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/roverdotcom/snagsby/pkg/config"
+	"github.com/roverdotcom/snagsby/pkg/connectors"
 
 	"sigs.k8s.io/yaml"
 )
@@ -48,7 +49,7 @@ func getSecretValue(svc *secretsmanager.Client, manifestItem *ManifestItem) (str
 }
 
 func resolveManifestItems(source *config.Source, manifestItems *ManifestItems, result *Result) {
-	svc, err := NewSecretsManager(source.URL)
+	smConnector, err := connectors.NewSecretsManagerConnector(source)
 	if err != nil {
 		result.AppendError(err)
 		return
@@ -63,7 +64,7 @@ func resolveManifestItems(source *config.Source, manifestItems *ManifestItems, r
 		envVarSecretMap[item.Name] = item.Env
 	}
 
-	secrets, errors := getSecrets(source, svc, secretKeys)
+	secrets, errors := smConnector.GetSecrets(secretKeys)
 	for _, err := range errors {
 		result.AppendError(err)
 	}

@@ -8,8 +8,9 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
+	"github.com/roverdotcom/snagsby/pkg/clients"
 	"github.com/roverdotcom/snagsby/pkg/config"
+	"github.com/roverdotcom/snagsby/pkg/connectors"
 )
 
 // SecretsManagerResolver handles secrets manager resolution
@@ -27,38 +28,17 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 	sourceURL := source.URL
 	prefix := strings.TrimSuffix(fmt.Sprintf("%s%s", sourceURL.Host, sourceURL.Path), "*")
 
-	svc, err := NewSecretsManager(sourceURL)
+	smConnector, err := connectors.NewSecretsManagerConnector(source)
 	if err != nil {
 		result.AppendError(err)
 		return result
 	}
-
-	// List secrets that begin with our prefix
-	params := &secretsmanager.ListSecretsInput{
-		Filters: []types.Filter{
-			{
-				Key: "name",
-				Values: []string{
-					prefix,
-				},
-			},
-		},
+	secretKeys, err := smConnector.ListSecrets(prefix)
+	if err != nil {
+		result.AppendError(err)
+		return result
 	}
-	secretKeys := []*string{}
-	paginator := secretsmanager.NewListSecretsPaginator(svc, params)
-	for paginator.HasMorePages() {
-		output, err := paginator.NextPage(context.TODO())
-		if err != nil {
-			result.AppendError(err)
-			return result
-		}
-		for _, secret := range output.SecretList {
-			secretKeys = append(secretKeys, secret.Name)
-		}
-
-	}
-
-	secrets, errors := getSecrets(source, svc, secretKeys)
+	secrets, errors := smConnector.GetSecrets(secretKeys)
 	for _, err := range errors {
 		result.AppendError(err)
 	}
@@ -70,11 +50,12 @@ func (s *SecretsManagerResolver) resolveRecursive(source *config.Source) *Result
 	return result
 }
 
+// TODO - See how to clean this up
 func (s *SecretsManagerResolver) resolveSingle(source *config.Source) *Result {
 	result := &Result{Source: source}
 	sourceURL := source.URL
 
-	cfg, err := getAwsConfig()
+	cfg, err := clients.GetAwsConfig()
 
 	if err != nil {
 		result.AppendError(err)
@@ -105,7 +86,9 @@ func (s *SecretsManagerResolver) resolveSingle(source *config.Source) *Result {
 		result.AppendError(err)
 		return result
 	}
-	out, err := readJSONString(*res.SecretString)
+
+	// TODO - ReadJSONString does not belong to AWS clients
+	out, err := clients.ReadJSONString(*res.SecretString)
 	if err != nil {
 		result.AppendError(err)
 		return result

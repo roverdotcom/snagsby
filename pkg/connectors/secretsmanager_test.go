@@ -1,4 +1,4 @@
-package resolvers
+package connectors
 
 import (
 	"context"
@@ -10,19 +10,35 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 	"github.com/roverdotcom/snagsby/pkg/config"
 )
 
 // mockSecretsManagerClient is a mock implementation of the Secrets Manager client
 type mockSecretsManagerClient struct {
 	getSecretValueFunc func(ctx context.Context, params *secretsmanager.GetSecretValueInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error)
+	listSecretsFunc    func(ctx context.Context, params *secretsmanager.ListSecretsInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.ListSecretsOutput, error)
 }
 
 type mockAWSSecretsManagerBehavior func(ctx context.Context, params *secretsmanager.GetSecretValueInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error)
 
+func GetMockSecretsManagerConnectorWithMocks(mock *mockSecretsManagerClient) *SecretsManagerConnector {
+	sourceURL, _ := url.Parse("sm://test")
+	source := &config.Source{URL: sourceURL}
+
+	return &SecretsManagerConnector{source: source, secretsmanagerClient: mock}
+}
+
 func (m *mockSecretsManagerClient) GetSecretValue(ctx context.Context, params *secretsmanager.GetSecretValueInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error) {
 	if m.getSecretValueFunc != nil {
 		return m.getSecretValueFunc(ctx, params, optFns...)
+	}
+	return nil, errors.New("mock not implemented")
+}
+
+func (m *mockSecretsManagerClient) ListSecrets(ctx context.Context, params *secretsmanager.ListSecretsInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.ListSecretsOutput, error) {
+	if m.listSecretsFunc != nil {
+		return m.listSecretsFunc(ctx, params, optFns...)
 	}
 	return nil, errors.New("mock not implemented")
 }
@@ -35,6 +51,14 @@ func makeMockSecretsManagerClient(secret string, err error) *mockSecretsManagerC
 			}
 			return &secretsmanager.GetSecretValueOutput{
 				SecretString: aws.String(secret),
+			}, nil
+		},
+		listSecretsFunc: func(ctx context.Context, params *secretsmanager.ListSecretsInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.ListSecretsOutput, error) {
+			return &secretsmanager.ListSecretsOutput{
+				SecretList: []types.SecretListEntry{
+					{Name: aws.String("secret1")},
+					{Name: aws.String("secret2")},
+				},
 			}, nil
 		},
 	}
@@ -98,25 +122,23 @@ func TestSMWorker(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
 			// Create mock client
 			mockClient := makeMockSecretsManagerClient(tt.secretValue, tt.mockError)
 
-			// Create source URL
-			sourceURL, _ := url.Parse("sm://test")
-			source := &config.Source{URL: sourceURL}
+			sm := GetMockSecretsManagerConnectorWithMocks(mockClient)
 
 			// Create channels
 			jobs := make(chan *smMessage, 1)
 			results := make(chan *smMessage, 1)
 
 			// Start worker
-			go smWorker(jobs, results, mockClient)
+			go sm.smWorker(jobs, results)
 
 			// Send job
 			secretName := tt.secretName
 			jobs <- &smMessage{
-				Source: source,
-				Name:   &secretName,
+				Name: &secretName,
 			}
 			close(jobs)
 
@@ -160,12 +182,12 @@ func TestSMWorkerWithVersionStage(t *testing.T) {
 	jobs := make(chan *smMessage, 1)
 	results := make(chan *smMessage, 1)
 
-	go smWorker(jobs, results, mockClient)
+	sm := &SecretsManagerConnector{source: source, secretsmanagerClient: mockClient}
+	go sm.smWorker(jobs, results)
 
 	secretName := "test-secret"
 	jobs <- &smMessage{
-		Source: source,
-		Name:   &secretName,
+		Name: &secretName,
 	}
 	close(jobs)
 
@@ -196,12 +218,13 @@ func TestSMWorkerWithVersionID(t *testing.T) {
 	jobs := make(chan *smMessage, 1)
 	results := make(chan *smMessage, 1)
 
-	go smWorker(jobs, results, mockClient)
+	sm := &SecretsManagerConnector{secretsmanagerClient: mockClient,
+		source: source}
+	go sm.smWorker(jobs, results)
 
 	secretName := "test-secret"
 	jobs <- &smMessage{
-		Source: source,
-		Name:   &secretName,
+		Name: &secretName,
 	}
 	close(jobs)
 
@@ -237,18 +260,15 @@ func TestSMWorkerWithErrorBehavior(t *testing.T) {
 				getSecretValueFunc: tt.mockBehavior,
 			}
 
-			sourceURL, _ := url.Parse("sm://test")
-			source := &config.Source{URL: sourceURL}
-
 			jobs := make(chan *smMessage, 1)
 			results := make(chan *smMessage, 1)
 
-			go smWorker(jobs, results, mockClient)
+			sm := GetMockSecretsManagerConnectorWithMocks(mockClient)
+			go sm.smWorker(jobs, results)
 
 			secretName := "test-secret"
 			jobs <- &smMessage{
-				Source: source,
-				Name:   &secretName,
+				Name: &secretName,
 			}
 			close(jobs)
 
@@ -319,11 +339,8 @@ func TestGetSecrets(t *testing.T) {
 			mockClient := &mockSecretsManagerClient{
 				getSecretValueFunc: tt.mockBehavior,
 			}
-
-			sourceURL, _ := url.Parse("sm://test")
-			source := &config.Source{URL: sourceURL}
-
-			result, errors := getSecrets(source, mockClient, tt.keys)
+			sm := GetMockSecretsManagerConnectorWithMocks(mockClient)
+			result, errors := sm.GetSecrets(tt.keys)
 
 			if len(result) != tt.expectedItems {
 				t.Errorf("Expected %d items, got %d", tt.expectedItems, len(result))
@@ -380,15 +397,13 @@ func TestGetSecretsConcurrency(t *testing.T) {
 				getSecretValueFunc: successBehavior(func(secretId string) string { return "value" }),
 			}
 
-			sourceURL, _ := url.Parse("sm://test")
-			source := &config.Source{URL: sourceURL}
-
 			keys := make([]*string, tt.numKeys)
 			for i := 0; i < tt.numKeys; i++ {
 				keys[i] = aws.String("secret" + string(rune('0'+i)))
 			}
 
-			result, errors := getSecrets(source, mockClient, keys)
+			sm := GetMockSecretsManagerConnectorWithMocks(mockClient)
+			result, errors := sm.GetSecrets(keys)
 
 			if len(result) != tt.numKeys {
 				t.Errorf("Expected %d items, got %d", tt.numKeys, len(result))
@@ -463,21 +478,15 @@ func TestSMConcurrencyInit(t *testing.T) {
 
 // TestSMMessageStruct tests the smMessage structure
 func TestSMMessageStruct(t *testing.T) {
-	sourceURL, _ := url.Parse("sm://test")
-	source := &config.Source{URL: sourceURL}
 	secretName := "test-secret"
 
 	msg := &smMessage{
-		Source:      source,
 		Name:        &secretName,
 		Result:      "test-result",
 		Error:       errors.New("test error"),
 		IsRecursive: true,
 	}
 
-	if msg.Source != source {
-		t.Error("Source not set correctly")
-	}
 	if *msg.Name != secretName {
 		t.Error("Name not set correctly")
 	}

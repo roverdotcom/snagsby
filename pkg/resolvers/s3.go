@@ -7,6 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/roverdotcom/snagsby/pkg/clients"
 	"github.com/roverdotcom/snagsby/pkg/config"
 )
 
@@ -24,7 +25,7 @@ func (s *S3ManagerResolver) Resolve(source *config.Source) *Result {
 	result := &Result{Source: source}
 	sourceURL := source.URL
 
-	cfg, err := getAwsConfig()
+	cfg, err := clients.GetAwsConfig()
 
 	if err != nil {
 		result.AppendError(err)
@@ -51,7 +52,7 @@ func (s *S3ManagerResolver) Resolve(source *config.Source) *Result {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(res.Body)
 	bodyStr := buf.String()
-	out, err := readJSONString(bodyStr)
+	out, err := clients.ReadJSONString(bodyStr)
 	if err != nil {
 		result.AppendError(err)
 		return result
