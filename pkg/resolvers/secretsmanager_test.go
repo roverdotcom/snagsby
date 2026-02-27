@@ -6,35 +6,8 @@ import (
 	"testing"
 
 	"github.com/roverdotcom/snagsby/pkg/config"
+	connectortesting "github.com/roverdotcom/snagsby/pkg/connectors/testing"
 )
-
-// mockSecretsManagerConnector implements SecretsManagerConnector for testing
-type mockSecretsManagerConnector struct {
-	listSecretsFunc func(prefix string) ([]string, error)
-	getSecretFunc   func(secretName string) (string, error)
-	getSecretsFunc  func(keys []string) (map[string]string, []error)
-}
-
-func (m *mockSecretsManagerConnector) ListSecrets(prefix string) ([]string, error) {
-	if m.listSecretsFunc != nil {
-		return m.listSecretsFunc(prefix)
-	}
-	return nil, nil
-}
-
-func (m *mockSecretsManagerConnector) GetSecret(secretName string) (string, error) {
-	if m.getSecretFunc != nil {
-		return m.getSecretFunc(secretName)
-	}
-	return "", nil
-}
-
-func (m *mockSecretsManagerConnector) GetSecrets(keys []string) (map[string]string, []error) {
-	if m.getSecretsFunc != nil {
-		return m.getSecretsFunc(keys)
-	}
-	return nil, nil
-}
 
 func TestIsRecursive(t *testing.T) {
 	sm := &SecretsManagerResolver{}
@@ -124,8 +97,8 @@ func TestResolveSingle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockConnector := &mockSecretsManagerConnector{
-				getSecretFunc: tt.mockGetSecret,
+			mockConnector := &connectortesting.MockSecretsConnector{
+				GetSecretFunc: tt.mockGetSecret,
 			}
 
 			resolver := &SecretsManagerResolver{
@@ -232,9 +205,9 @@ func TestResolveRecursive(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockConnector := &mockSecretsManagerConnector{
-				listSecretsFunc: tt.mockListFunc,
-				getSecretsFunc:  tt.mockGetSecrets,
+			mockConnector := &connectortesting.MockSecretsConnector{
+				ListSecretsFunc: tt.mockListFunc,
+				GetSecretsFunc:  tt.mockGetSecrets,
 			}
 
 			resolver := &SecretsManagerResolver{
@@ -295,14 +268,14 @@ func TestResolve(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockConnector := &mockSecretsManagerConnector{
-				getSecretFunc: func(secretName string) (string, error) {
+			mockConnector := &connectortesting.MockSecretsConnector{
+				GetSecretFunc: func(secretName string) (string, error) {
 					return `{"key":"value"}`, nil
 				},
-				listSecretsFunc: func(prefix string) ([]string, error) {
+				ListSecretsFunc: func(prefix string) ([]string, error) {
 					return []string{"prod/api/key1"}, nil
 				},
-				getSecretsFunc: func(keys []string) (map[string]string, []error) {
+				GetSecretsFunc: func(keys []string) (map[string]string, []error) {
 					return map[string]string{"prod/api/key1": `{"value":"secret1"}`}, nil
 				},
 			}

@@ -8,19 +8,8 @@ import (
 	"testing"
 
 	"github.com/roverdotcom/snagsby/pkg/config"
+	connectortesting "github.com/roverdotcom/snagsby/pkg/connectors/testing"
 )
-
-// mockManifestConnector implements manifestSecretsConnector for testing
-type mockManifestConnector struct {
-	getSecretsFunc func(keys []string) (map[string]string, []error)
-}
-
-func (m *mockManifestConnector) GetSecrets(keys []string) (map[string]string, []error) {
-	if m.getSecretsFunc != nil {
-		return m.getSecretsFunc(keys)
-	}
-	return nil, nil
-}
 
 func TestManifestResolve(t *testing.T) {
 	tests := []struct {
@@ -133,8 +122,8 @@ func TestManifestResolve(t *testing.T) {
 				t.Fatalf("Failed to create test manifest file: %v", err)
 			}
 
-			mockConnector := &mockManifestConnector{
-				getSecretsFunc: tt.mockGetSecrets,
+			mockConnector := &connectortesting.MockSecretsConnector{
+				GetSecretsFunc: tt.mockGetSecrets,
 			}
 
 			resolver := &ManifestResolver{
@@ -228,8 +217,8 @@ func TestManifestResolveFileErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			manifestPath := tt.setupFile(t)
 
-			mockConnector := &mockManifestConnector{
-				getSecretsFunc: func(keys []string) (map[string]string, []error) {
+			mockConnector := &connectortesting.MockSecretsConnector{
+				GetSecretsFunc: func(keys []string) (map[string]string, []error) {
 					return map[string]string{}, nil
 				},
 			}
@@ -328,8 +317,8 @@ func TestResolveManifestItems(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockConnector := &mockManifestConnector{
-				getSecretsFunc: tt.mockGetSecrets,
+			mockConnector := &connectortesting.MockSecretsConnector{
+				GetSecretsFunc: tt.mockGetSecrets,
 			}
 
 			resolver := &ManifestResolver{
@@ -380,8 +369,8 @@ func TestManifestIntegrationWithResolveSource(t *testing.T) {
 	}
 
 	// Use a mock connector to avoid real AWS calls while exercising manifest resolution
-	mockConnector := &mockManifestConnector{
-		getSecretsFunc: func(keys []string) (map[string]string, []error) {
+	mockConnector := &connectortesting.MockSecretsConnector{
+		GetSecretsFunc: func(keys []string) (map[string]string, []error) {
 			return map[string]string{
 				"prod/api/database":   "postgres://user:pass@host:5432/db",
 				"prod/api/secret-key": "super-secret-key",
@@ -432,8 +421,8 @@ func TestManifestWithSpecialCharacters(t *testing.T) {
 		t.Fatalf("Failed to create test manifest file: %v", err)
 	}
 
-	mockConnector := &mockManifestConnector{
-		getSecretsFunc: func(keys []string) (map[string]string, []error) {
+	mockConnector := &connectortesting.MockSecretsConnector{
+		GetSecretsFunc: func(keys []string) (map[string]string, []error) {
 			return map[string]string{
 				"prod/api/special-chars":    "value-with-dashes",
 				"prod/api/underscores_test": "value_with_underscores",
@@ -485,8 +474,8 @@ func TestManifestKeysAreCorrectlyPassed(t *testing.T) {
 
 	// Verify the exact keys that are passed to GetSecrets
 	var receivedKeys []string
-	mockConnector := &mockManifestConnector{
-		getSecretsFunc: func(keys []string) (map[string]string, []error) {
+	mockConnector := &connectortesting.MockSecretsConnector{
+		GetSecretsFunc: func(keys []string) (map[string]string, []error) {
 			receivedKeys = keys
 			return map[string]string{
 				"first-secret":  "value1",
