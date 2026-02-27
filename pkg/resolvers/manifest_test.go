@@ -103,8 +103,8 @@ func TestManifestResolve(t *testing.T) {
 			},
 			expectError: false,
 			expectedItems: map[string]string{
-				// One of them will win, but we can't guarantee order
-				"DATABASE_URL": "",
+				// Last item in manifest wins due to deterministic iteration order
+				"DATABASE_URL": "postgres://replica:5432/db",
 			},
 		},
 		{
@@ -157,14 +157,6 @@ func TestManifestResolve(t *testing.T) {
 				if len(result.Errors) > 0 {
 					t.Errorf("Unexpected error: %v", result.Errors[0])
 				}
-			}
-
-			// Skip checking items for the "last one wins" test
-			if tt.name == "multiple secrets with same env var (last one wins)" {
-				if len(result.Items) != 1 {
-					t.Errorf("Expected 1 item, got %d", len(result.Items))
-				}
-				return
 			}
 
 			if len(result.Items) != len(tt.expectedItems) {
