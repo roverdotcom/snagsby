@@ -62,7 +62,7 @@ func (c *Config) GetSources() []*Source {
 	return c.Sources
 }
 
-// LenSources is the number or sources
-func (c *Config) LenSources() int {
+// lenSources is the number of sources
+func (c *Config) lenSources() int {
 	return len(c.Sources)
 }

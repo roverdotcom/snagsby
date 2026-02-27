@@ -1,18 +1,17 @@
 package resolvers
 
 import (
-	"context"
 	"fmt"
 	"os"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/retry"
-	awsConfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/roverdotcom/snagsby/pkg/config"
 
 	"sigs.k8s.io/yaml"
 )
+
+type manifestSecretsConnector interface {
+	GetSecrets(keys []string) (map[string]string, []error)
+}
 
 type ManifestItems struct {
 	Items []*ManifestItem
@@ -23,68 +22,34 @@ type ManifestItem struct {
 	Env  string `json:"env"`
 }
 
-type manifestResult struct {
-	Value string
-	Error error
-	Item  *ManifestItem
+type ManifestResolver struct {
+	connector manifestSecretsConnector
 }
 
-func manifestWorker(svc *secretsmanager.Client, jobs <-chan *ManifestItem, resultChan chan<- *manifestResult) {
-	for manifestItem := range jobs {
-		result := &manifestResult{Item: manifestItem}
-		value, err := getSecretValue(svc, manifestItem)
-		result.Error = err
-		result.Value = value
-		resultChan <- result
-	}
+func NewManifestResolver(connector manifestSecretsConnector) *ManifestResolver {
+	return &ManifestResolver{connector: connector}
 }
 
-func getSecretValue(svc *secretsmanager.Client, manifestItem *ManifestItem) (string, error) {
-	input := &secretsmanager.GetSecretValueInput{
-		SecretId: &manifestItem.Name,
-	}
-	getSecret, err := svc.GetSecretValue(context.TODO(), input)
-	if err != nil {
-		return "", err
-	}
-	return *getSecret.SecretString, nil
-}
+func (m *ManifestResolver) resolveManifestItems(manifestItems *ManifestItems, result *Result) {
 
-func resolveManifestItems(manifestItems *ManifestItems, result *Result) {
-	cfg, err := getAwsConfig(awsConfig.WithRetryer(func() aws.Retryer {
-		return retry.AddWithMaxAttempts(retry.NewStandard(), 10)
-	}))
-	if err != nil {
-		result.AppendError(err)
-		return
-	}
-	svc := secretsmanager.NewFromConfig(cfg)
 	numItems := len(manifestItems.Items)
-	resultsChan := make(chan *manifestResult, numItems)
-	jobsChan := make(chan *ManifestItem, numItems)
+	secretKeys := make([]string, numItems)
+
+	for i, item := range manifestItems.Items {
+		secretKeys[i] = item.Name
+	}
+
+	secrets, errors := m.connector.GetSecrets(secretKeys)
+	for _, err := range errors {
+		result.AppendError(err)
+	}
+
 	for _, item := range manifestItems.Items {
-		jobsChan <- item
-	}
-
-	// Boot up 20 workers
-	numWorkers := 20
-	for range numWorkers {
-		go manifestWorker(svc, jobsChan, resultsChan)
-	}
-	close(jobsChan)
-
-	for range numItems {
-		getResult := <-resultsChan
-		if getResult.Error != nil {
-			result.AppendError(getResult.Error)
-		} else {
-			result.AppendItem(getResult.Item.Env, getResult.Value)
+		if value, ok := secrets[item.Name]; ok {
+			result.AppendItem(item.Env, value)
 		}
 	}
-	close(resultsChan)
 }
-
-type ManifestResolver struct{}
 
 func (s *ManifestResolver) Resolve(source *config.Source) *Result {
 	result := &Result{Source: source}
@@ -101,7 +66,7 @@ func (s *ManifestResolver) Resolve(source *config.Source) *Result {
 		return result
 	}
 
-	resolveManifestItems(&manifestItems, result)
+	s.resolveManifestItems(&manifestItems, result)
 
 	return result
 }
