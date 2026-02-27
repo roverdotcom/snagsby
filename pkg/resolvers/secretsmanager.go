@@ -10,13 +10,17 @@ import (
 )
 
 type secretsManagerConnector interface {
-	ListSecrets(prefix string) ([]*string, error)
+	ListSecrets(prefix string) ([]string, error)
 	GetSecret(secretName string) (string, error)
-	GetSecrets(keys []*string) (map[string]string, []error)
+	GetSecrets(keys []string) (map[string]string, []error)
 }
 
 type SecretsManagerResolver struct {
 	connector secretsManagerConnector
+}
+
+func NewSecretsManagerResolver(connector secretsManagerConnector) *SecretsManagerResolver {
+	return &SecretsManagerResolver{connector: connector}
 }
 
 func (s *SecretsManagerResolver) keyNameFromPrefix(prefix, name string) string {

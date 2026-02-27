@@ -198,28 +198,28 @@ func TestGetSecretErrors(t *testing.T) {
 func TestGetSecrets(t *testing.T) {
 	tests := []struct {
 		name          string
-		keys          []*string
+		keys          []string
 		mockBehavior  mockAWSSecretsManagerBehavior
 		expectedItems int
 		expectedError bool
 	}{
 		{
 			name:          "single secret success",
-			keys:          []*string{aws.String("secret1")},
+			keys:          []string{"secret1"},
 			mockBehavior:  successBehavior(func(secretId string) string { return "value1" }),
 			expectedItems: 1,
 			expectedError: false,
 		},
 		{
 			name:          "multiple secrets success",
-			keys:          []*string{aws.String("secret1"), aws.String("secret2"), aws.String("secret3")},
+			keys:          []string{"secret1", "secret2", "secret3"},
 			mockBehavior:  successBehavior(func(secretId string) string { return "value-" + secretId }),
 			expectedItems: 3,
 			expectedError: false,
 		},
 		{
 			name: "partial failure",
-			keys: []*string{aws.String("secret1"), aws.String("secret2"), aws.String("secret3")},
+			keys: []string{"secret1", "secret2", "secret3"},
 			mockBehavior: makeBehavior(func(secretId string) (string, error) {
 				if secretId == "secret2" {
 					return "", errors.New("secret not found")
@@ -231,14 +231,14 @@ func TestGetSecrets(t *testing.T) {
 		},
 		{
 			name:          "complete failure - all secrets fail",
-			keys:          []*string{aws.String("secret1"), aws.String("secret2"), aws.String("secret3")},
+			keys:          []string{"secret1", "secret2", "secret3"},
 			mockBehavior:  errorBehavior(errors.New("access denied")),
 			expectedItems: 0,
 			expectedError: true,
 		},
 		{
 			name:          "empty keys",
-			keys:          []*string{},
+			keys:          []string{},
 			mockBehavior:  successBehavior(func(secretId string) string { return "should-not-be-called" }),
 			expectedItems: 0,
 			expectedError: false,
@@ -316,6 +316,8 @@ func TestGetConcurrencyOrDefault(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			smc := &SecretsManagerConnector{}
+
 			// Save and restore environment variable
 			originalEnv, hadEnv := os.LookupEnv("SNAGSBY_SM_CONCURRENCY")
 			defer func() {
@@ -333,7 +335,7 @@ func TestGetConcurrencyOrDefault(t *testing.T) {
 				os.Unsetenv("SNAGSBY_SM_CONCURRENCY")
 			}
 
-			result := getConcurrencyOrDefault(tt.keyLength)
+			result := smc.getConcurrencyOrDefault(tt.keyLength)
 
 			if result != tt.expected {
 				t.Errorf("Expected %d, got %d", tt.expected, result)
@@ -400,16 +402,18 @@ func TestGetSecretsConcurrency(t *testing.T) {
 				os.Unsetenv("SNAGSBY_SM_CONCURRENCY")
 			}
 
+			smc := &SecretsManagerConnector{}
+
 			// Verify getConcurrencyOrDefault returns expected value
-			actualConcurrency := getConcurrencyOrDefault(tt.numKeys)
+			actualConcurrency := smc.getConcurrencyOrDefault(tt.numKeys)
 			if actualConcurrency != tt.expectedConcurrency {
 				t.Errorf("getConcurrencyOrDefault(%d) = %d, expected %d", tt.numKeys, actualConcurrency, tt.expectedConcurrency)
 			}
 
 			// Create keys
-			keys := make([]*string, tt.numKeys)
+			keys := make([]string, tt.numKeys)
 			for i := 0; i < tt.numKeys; i++ {
-				keys[i] = aws.String("secret" + strconv.Itoa(i))
+				keys[i] = "secret" + strconv.Itoa(i)
 			}
 
 			// Track concurrent calls

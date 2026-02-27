@@ -39,7 +39,7 @@ func NewSecretsManagerConnector(source *config.Source) (*SecretsManagerConnector
 	return &SecretsManagerConnector{secretsmanagerClient: secretsManagerClient, source: source}, nil
 }
 
-func getConcurrencyOrDefault(keyLength int) int {
+func (sm *SecretsManagerConnector) getConcurrencyOrDefault(keyLength int) int {
 	// Pull concurrency settings
 	getConcurrency, hasSetting := os.LookupEnv("SNAGSBY_SM_CONCURRENCY")
 	if hasSetting {
@@ -53,12 +53,12 @@ func getConcurrencyOrDefault(keyLength int) int {
 }
 
 // fetchSecretValue retrieves a single secret value with version control
-func (sm *SecretsManagerConnector) fetchSecretValue(secretName *string) (string, error) {
+func (sm *SecretsManagerConnector) fetchSecretValue(secretName string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	input := &secretsmanager.GetSecretValueInput{
-		SecretId: secretName,
+		SecretId: aws.String(secretName),
 	}
 
 	sourceURL := sm.source.URL
@@ -86,7 +86,7 @@ type secretResult struct {
 // worker processes secret fetch requests from the jobs channel
 func (sm *SecretsManagerConnector) worker(jobs <-chan string, results chan<- secretResult) {
 	for secretName := range jobs {
-		value, err := sm.fetchSecretValue(&secretName)
+		value, err := sm.fetchSecretValue(secretName)
 		results <- secretResult{
 			name:  secretName,
 			value: value,
@@ -96,14 +96,14 @@ func (sm *SecretsManagerConnector) worker(jobs <-chan string, results chan<- sec
 }
 
 // GetSecrets handles concurrent retrieval of secrets from secrets manager
-func (sm *SecretsManagerConnector) GetSecrets(keys []*string) (map[string]string, []error) {
+func (sm *SecretsManagerConnector) GetSecrets(keys []string) (map[string]string, []error) {
 	keysLength := len(keys)
 
 	if keysLength == 0 {
 		return map[string]string{}, nil
 	}
 
-	numWorkers := getConcurrencyOrDefault(keysLength)
+	numWorkers := sm.getConcurrencyOrDefault(keysLength)
 
 	jobs := make(chan string, keysLength)
 	results := make(chan secretResult, keysLength)
@@ -115,7 +115,7 @@ func (sm *SecretsManagerConnector) GetSecrets(keys []*string) (map[string]string
 
 	// Send jobs
 	for _, key := range keys {
-		jobs <- *key
+		jobs <- key
 	}
 	close(jobs)
 
@@ -134,7 +134,7 @@ func (sm *SecretsManagerConnector) GetSecrets(keys []*string) (map[string]string
 	return secrets, errors
 }
 
-func (s *SecretsManagerConnector) ListSecrets(prefix string) ([]*string, error) {
+func (s *SecretsManagerConnector) ListSecrets(prefix string) ([]string, error) {
 	// List secrets that begin with our prefix
 	params := &secretsmanager.ListSecretsInput{
 		Filters: []types.Filter{
@@ -146,7 +146,7 @@ func (s *SecretsManagerConnector) ListSecrets(prefix string) ([]*string, error) 
 			},
 		},
 	}
-	secretKeys := []*string{}
+	secretKeys := []string{}
 	paginator := secretsmanager.NewListSecretsPaginator(s.secretsmanagerClient, params)
 	for paginator.HasMorePages() {
 		output, err := paginator.NextPage(context.TODO())
@@ -154,7 +154,7 @@ func (s *SecretsManagerConnector) ListSecrets(prefix string) ([]*string, error) 
 			return secretKeys, err
 		}
 		for _, secret := range output.SecretList {
-			secretKeys = append(secretKeys, secret.Name)
+			secretKeys = append(secretKeys, *secret.Name)
 		}
 
 	}
@@ -164,5 +164,5 @@ func (s *SecretsManagerConnector) ListSecrets(prefix string) ([]*string, error) 
 
 // GetSecret retrieves a single secret value
 func (sm *SecretsManagerConnector) GetSecret(secretName string) (string, error) {
-	return sm.fetchSecretValue(aws.String(secretName))
+	return sm.fetchSecretValue(secretName)
 }

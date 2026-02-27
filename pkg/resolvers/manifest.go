@@ -10,7 +10,7 @@ import (
 )
 
 type manifestSecretsConnector interface {
-	GetSecrets(keys []*string) (map[string]string, []error)
+	GetSecrets(keys []string) (map[string]string, []error)
 }
 
 type ManifestItems struct {
@@ -26,14 +26,18 @@ type ManifestResolver struct {
 	connector manifestSecretsConnector
 }
 
+func NewManifestResolver(connector manifestSecretsConnector) *ManifestResolver {
+	return &ManifestResolver{connector: connector}
+}
+
 func (m *ManifestResolver) resolveManifestItems(manifestItems *ManifestItems, result *Result) {
 
 	numItems := len(manifestItems.Items)
-	secretKeys := make([]*string, numItems)
+	secretKeys := make([]string, numItems)
 	envVarSecretMap := make(map[string]string)
 
 	for i, item := range manifestItems.Items {
-		secretKeys[i] = &item.Name
+		secretKeys[i] = item.Name
 		envVarSecretMap[item.Name] = item.Env
 	}
 

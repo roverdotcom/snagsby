@@ -7,16 +7,15 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/roverdotcom/snagsby/pkg/config"
 )
 
 // mockManifestConnector implements manifestSecretsConnector for testing
 type mockManifestConnector struct {
-	getSecretsFunc func(keys []*string) (map[string]string, []error)
+	getSecretsFunc func(keys []string) (map[string]string, []error)
 }
 
-func (m *mockManifestConnector) GetSecrets(keys []*string) (map[string]string, []error) {
+func (m *mockManifestConnector) GetSecrets(keys []string) (map[string]string, []error) {
 	if m.getSecretsFunc != nil {
 		return m.getSecretsFunc(keys)
 	}
@@ -27,7 +26,7 @@ func TestManifestResolve(t *testing.T) {
 	tests := []struct {
 		name           string
 		manifestYAML   string
-		mockGetSecrets func(keys []*string) (map[string]string, []error)
+		mockGetSecrets func(keys []string) (map[string]string, []error)
 		expectError    bool
 		expectedItems  map[string]string
 	}{
@@ -39,7 +38,7 @@ func TestManifestResolve(t *testing.T) {
   - name: prod/api/secret-key
     env: SECRET_KEY
 `,
-			mockGetSecrets: func(keys []*string) (map[string]string, []error) {
+			mockGetSecrets: func(keys []string) (map[string]string, []error) {
 				// Verify the keys requested
 				if len(keys) != 2 {
 					t.Errorf("Expected 2 secret keys, got %d", len(keys))
@@ -59,7 +58,7 @@ func TestManifestResolve(t *testing.T) {
 			name: "empty manifest",
 			manifestYAML: `items: []
 `,
-			mockGetSecrets: func(keys []*string) (map[string]string, []error) {
+			mockGetSecrets: func(keys []string) (map[string]string, []error) {
 				if len(keys) != 0 {
 					t.Errorf("Expected 0 secret keys for empty manifest, got %d", len(keys))
 				}
@@ -76,12 +75,12 @@ func TestManifestResolve(t *testing.T) {
   - name: prod/api/secret-key
     env: SECRET_KEY
 `,
-			mockGetSecrets: func(keys []*string) (map[string]string, []error) {
+			mockGetSecrets: func(keys []string) (map[string]string, []error) {
 				return map[string]string{
-					"prod/api/database": "postgres://localhost:5432/db",
-				}, []error{
-					errors.New("failed to get prod/api/secret-key"),
-				}
+						"prod/api/database": "postgres://localhost:5432/db",
+					}, []error{
+						errors.New("failed to get prod/api/secret-key"),
+					}
 			},
 			expectError: true,
 			expectedItems: map[string]string{
@@ -96,7 +95,7 @@ func TestManifestResolve(t *testing.T) {
   - name: prod/api/database-replica
     env: DATABASE_URL
 `,
-			mockGetSecrets: func(keys []*string) (map[string]string, []error) {
+			mockGetSecrets: func(keys []string) (map[string]string, []error) {
 				return map[string]string{
 					"prod/api/database-primary": "postgres://primary:5432/db",
 					"prod/api/database-replica": "postgres://replica:5432/db",
@@ -114,7 +113,7 @@ func TestManifestResolve(t *testing.T) {
   - name: prod/api/database
     env: DATABASE_URL
 `,
-			mockGetSecrets: func(keys []*string) (map[string]string, []error) {
+			mockGetSecrets: func(keys []string) (map[string]string, []error) {
 				return map[string]string{}, []error{
 					errors.New("failed to get prod/api/database"),
 				}
@@ -230,7 +229,7 @@ func TestManifestResolveFileErrors(t *testing.T) {
 			manifestPath := tt.setupFile(t)
 
 			mockConnector := &mockManifestConnector{
-				getSecretsFunc: func(keys []*string) (map[string]string, []error) {
+				getSecretsFunc: func(keys []string) (map[string]string, []error) {
 					return map[string]string{}, nil
 				},
 			}
@@ -264,7 +263,7 @@ func TestResolveManifestItems(t *testing.T) {
 	tests := []struct {
 		name           string
 		manifestItems  *ManifestItems
-		mockGetSecrets func(keys []*string) (map[string]string, []error)
+		mockGetSecrets func(keys []string) (map[string]string, []error)
 		expectError    bool
 		expectedItems  map[string]string
 	}{
@@ -277,7 +276,7 @@ func TestResolveManifestItems(t *testing.T) {
 					{Name: "secret3", Env: "ENV_VAR_3"},
 				},
 			},
-			mockGetSecrets: func(keys []*string) (map[string]string, []error) {
+			mockGetSecrets: func(keys []string) (map[string]string, []error) {
 				if len(keys) != 3 {
 					t.Errorf("Expected 3 keys, got %d", len(keys))
 				}
@@ -302,12 +301,12 @@ func TestResolveManifestItems(t *testing.T) {
 					{Name: "secret2", Env: "ENV_VAR_2"},
 				},
 			},
-			mockGetSecrets: func(keys []*string) (map[string]string, []error) {
+			mockGetSecrets: func(keys []string) (map[string]string, []error) {
 				return map[string]string{
-					"secret1": "value1",
-				}, []error{
-					errors.New("failed to get secret2"),
-				}
+						"secret1": "value1",
+					}, []error{
+						errors.New("failed to get secret2"),
+					}
 			},
 			expectError: true,
 			expectedItems: map[string]string{
@@ -319,7 +318,7 @@ func TestResolveManifestItems(t *testing.T) {
 			manifestItems: &ManifestItems{
 				Items: []*ManifestItem{},
 			},
-			mockGetSecrets: func(keys []*string) (map[string]string, []error) {
+			mockGetSecrets: func(keys []string) (map[string]string, []error) {
 				return map[string]string{}, nil
 			},
 			expectError:   false,
@@ -382,7 +381,7 @@ func TestManifestIntegrationWithResolveSource(t *testing.T) {
 
 	// Use a mock connector to avoid real AWS calls while exercising manifest resolution
 	mockConnector := &mockManifestConnector{
-		getSecretsFunc: func(keys []*string) (map[string]string, []error) {
+		getSecretsFunc: func(keys []string) (map[string]string, []error) {
 			return map[string]string{
 				"prod/api/database":   "postgres://user:pass@host:5432/db",
 				"prod/api/secret-key": "super-secret-key",
@@ -434,10 +433,10 @@ func TestManifestWithSpecialCharacters(t *testing.T) {
 	}
 
 	mockConnector := &mockManifestConnector{
-		getSecretsFunc: func(keys []*string) (map[string]string, []error) {
+		getSecretsFunc: func(keys []string) (map[string]string, []error) {
 			return map[string]string{
-				"prod/api/special-chars":     "value-with-dashes",
-				"prod/api/underscores_test":  "value_with_underscores",
+				"prod/api/special-chars":    "value-with-dashes",
+				"prod/api/underscores_test": "value_with_underscores",
 			}, nil
 		},
 	}
@@ -485,9 +484,9 @@ func TestManifestKeysAreCorrectlyPassed(t *testing.T) {
 	}
 
 	// Verify the exact keys that are passed to GetSecrets
-	var receivedKeys []*string
+	var receivedKeys []string
 	mockConnector := &mockManifestConnector{
-		getSecretsFunc: func(keys []*string) (map[string]string, []error) {
+		getSecretsFunc: func(keys []string) (map[string]string, []error) {
 			receivedKeys = keys
 			return map[string]string{
 				"first-secret":  "value1",
@@ -520,7 +519,7 @@ func TestManifestKeysAreCorrectlyPassed(t *testing.T) {
 	// Create a map to check all keys were passed
 	keyMap := make(map[string]bool)
 	for _, key := range receivedKeys {
-		keyMap[*key] = true
+		keyMap[key] = true
 	}
 
 	expectedKeys := []string{"first-secret", "second-secret", "third-secret"}
@@ -529,9 +528,4 @@ func TestManifestKeysAreCorrectlyPassed(t *testing.T) {
 			t.Errorf("Expected key '%s' was not passed to GetSecrets", expectedKey)
 		}
 	}
-}
-
-// Helper function to create string pointer
-func stringPtr(s string) *string {
-	return aws.String(s)
 }

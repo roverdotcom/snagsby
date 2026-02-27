@@ -5,18 +5,17 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/roverdotcom/snagsby/pkg/config"
 )
 
 // mockSecretsManagerConnector implements SecretsManagerConnector for testing
 type mockSecretsManagerConnector struct {
-	listSecretsFunc func(prefix string) ([]*string, error)
+	listSecretsFunc func(prefix string) ([]string, error)
 	getSecretFunc   func(secretName string) (string, error)
-	getSecretsFunc  func(keys []*string) (map[string]string, []error)
+	getSecretsFunc  func(keys []string) (map[string]string, []error)
 }
 
-func (m *mockSecretsManagerConnector) ListSecrets(prefix string) ([]*string, error) {
+func (m *mockSecretsManagerConnector) ListSecrets(prefix string) ([]string, error) {
 	if m.listSecretsFunc != nil {
 		return m.listSecretsFunc(prefix)
 	}
@@ -30,7 +29,7 @@ func (m *mockSecretsManagerConnector) GetSecret(secretName string) (string, erro
 	return "", nil
 }
 
-func (m *mockSecretsManagerConnector) GetSecrets(keys []*string) (map[string]string, []error) {
+func (m *mockSecretsManagerConnector) GetSecrets(keys []string) (map[string]string, []error) {
 	if m.getSecretsFunc != nil {
 		return m.getSecretsFunc(keys)
 	}
@@ -171,24 +170,24 @@ func TestResolveRecursive(t *testing.T) {
 	tests := []struct {
 		name           string
 		sourceURL      string
-		mockListFunc   func(prefix string) ([]*string, error)
-		mockGetSecrets func(keys []*string) (map[string]string, []error)
+		mockListFunc   func(prefix string) ([]string, error)
+		mockGetSecrets func(keys []string) (map[string]string, []error)
 		expectError    bool
 		expectedItems  map[string]string
 	}{
 		{
 			name:      "successful recursive retrieval",
 			sourceURL: "sm://prod/api/*",
-			mockListFunc: func(prefix string) ([]*string, error) {
+			mockListFunc: func(prefix string) ([]string, error) {
 				if prefix != "prod/api/" {
 					t.Errorf("Expected prefix 'prod/api/', got '%s'", prefix)
 				}
-				return []*string{
-					aws.String("prod/api/key1"),
-					aws.String("prod/api/key2"),
+				return []string{
+					"prod/api/key1",
+					"prod/api/key2",
 				}, nil
 			},
-			mockGetSecrets: func(keys []*string) (map[string]string, []error) {
+			mockGetSecrets: func(keys []string) (map[string]string, []error) {
 				return map[string]string{
 					"prod/api/key1": `{"value":"secret1"}`,
 					"prod/api/key2": `{"value":"secret2"}`,
@@ -203,7 +202,7 @@ func TestResolveRecursive(t *testing.T) {
 		{
 			name:      "ListSecrets returns error",
 			sourceURL: "sm://prod/api/*",
-			mockListFunc: func(prefix string) ([]*string, error) {
+			mockListFunc: func(prefix string) ([]string, error) {
 				return nil, errors.New("failed to list secrets")
 			},
 			expectError: true,
@@ -211,18 +210,18 @@ func TestResolveRecursive(t *testing.T) {
 		{
 			name:      "GetSecrets returns errors",
 			sourceURL: "sm://prod/api/*",
-			mockListFunc: func(prefix string) ([]*string, error) {
-				return []*string{
-					aws.String("prod/api/key1"),
-					aws.String("prod/api/key2"),
+			mockListFunc: func(prefix string) ([]string, error) {
+				return []string{
+					"prod/api/key1",
+					"prod/api/key2",
 				}, nil
 			},
-			mockGetSecrets: func(keys []*string) (map[string]string, []error) {
+			mockGetSecrets: func(keys []string) (map[string]string, []error) {
 				return map[string]string{
-					"prod/api/key1": `{"value":"secret1"}`,
-				}, []error{
-					errors.New("failed to get prod/api/key2"),
-				}
+						"prod/api/key1": `{"value":"secret1"}`,
+					}, []error{
+						errors.New("failed to get prod/api/key2"),
+					}
 			},
 			expectError: true,
 			expectedItems: map[string]string{
@@ -300,10 +299,10 @@ func TestResolve(t *testing.T) {
 				getSecretFunc: func(secretName string) (string, error) {
 					return `{"key":"value"}`, nil
 				},
-				listSecretsFunc: func(prefix string) ([]*string, error) {
-					return []*string{aws.String("prod/api/key1")}, nil
+				listSecretsFunc: func(prefix string) ([]string, error) {
+					return []string{"prod/api/key1"}, nil
 				},
-				getSecretsFunc: func(keys []*string) (map[string]string, []error) {
+				getSecretsFunc: func(keys []string) (map[string]string, []error) {
 					return map[string]string{"prod/api/key1": `{"value":"secret1"}`}, nil
 				},
 			}
