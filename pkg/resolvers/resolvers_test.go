@@ -19,8 +19,8 @@ func TestKeyRegexp(t *testing.T) {
 func TestAppendItems(t *testing.T) {
 	res := &Result{}
 	items := map[string]string{
-		"key1": "value1",
-		"key2": "value2",
+		"key1":            "value1",
+		"key2":            "value2",
 		"Key-With-Dashes": "value3",
 	}
 	res.AppendItems(items)

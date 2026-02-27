@@ -2,6 +2,7 @@ package connectors
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -74,6 +75,10 @@ func (sm *SecretsManagerConnector) fetchSecretValue(secretName string) (string, 
 		return "", err
 	}
 
+	if getSecret.SecretString == nil {
+		return "", fmt.Errorf("secret %s has no string value (may be binary data)", secretName)
+	}
+
 	return *getSecret.SecretString, nil
 }
 
@@ -104,6 +109,7 @@ func (sm *SecretsManagerConnector) GetSecrets(keys []string) (map[string]string,
 	}
 
 	numWorkers := sm.getConcurrencyOrDefault(keysLength)
+	numWorkers = min(numWorkers, keysLength, 100)
 
 	jobs := make(chan string, keysLength)
 	results := make(chan secretResult, keysLength)
@@ -154,7 +160,11 @@ func (s *SecretsManagerConnector) ListSecrets(prefix string) ([]string, error) {
 			return secretKeys, err
 		}
 		for _, secret := range output.SecretList {
-			secretKeys = append(secretKeys, *secret.Name)
+			name := aws.ToString(secret.Name)
+			if name == "" {
+				continue
+			}
+			secretKeys = append(secretKeys, name)
 		}
 
 	}

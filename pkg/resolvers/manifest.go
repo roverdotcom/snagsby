@@ -34,11 +34,9 @@ func (m *ManifestResolver) resolveManifestItems(manifestItems *ManifestItems, re
 
 	numItems := len(manifestItems.Items)
 	secretKeys := make([]string, numItems)
-	envVarSecretMap := make(map[string]string)
 
 	for i, item := range manifestItems.Items {
 		secretKeys[i] = item.Name
-		envVarSecretMap[item.Name] = item.Env
 	}
 
 	secrets, errors := m.connector.GetSecrets(secretKeys)
@@ -46,9 +44,9 @@ func (m *ManifestResolver) resolveManifestItems(manifestItems *ManifestItems, re
 		result.AppendError(err)
 	}
 
-	for key, value := range secrets {
-		if envVar, ok := envVarSecretMap[key]; ok {
-			result.AppendItem(envVar, value)
+	for _, item := range manifestItems.Items {
+		if value, ok := secrets[item.Name]; ok {
+			result.AppendItem(item.Env, value)
 		}
 	}
 }
