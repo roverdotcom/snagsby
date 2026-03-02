@@ -6,11 +6,16 @@ import (
 	"io"
 	"maps"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 
 	"github.com/roverdotcom/snagsby/pkg/config"
 )
+
+// envVarNameRegexp validates environment variable names
+// Must start with letter or underscore, followed by letters, digits, or underscores
+var envVarNameRegexp = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 type envFileSecretsGetter interface {
 	GetSecrets(keys []string) (map[string]string, []error)
@@ -22,6 +27,10 @@ type EnvFileResolver struct {
 
 func NewEnvFileResolver(connector envFileSecretsGetter) *EnvFileResolver {
 	return &EnvFileResolver{connector: connector}
+}
+
+func isValidEnvVarName(key string) bool {
+	return envVarNameRegexp.MatchString(key)
 }
 
 func getFilePath(source *config.Source) string {
@@ -56,15 +65,15 @@ func processLine(line string) (string, string, error) {
 		return "", "", fmt.Errorf("invalid line: %s (empty key)", line)
 	}
 
+	if !isValidEnvVarName(key) {
+		return "", "", fmt.Errorf("invalid key '%s': environment variable names must contain only letters, digits, and underscores, and must start with a letter or underscore", key)
+	}
+
 	// Remove inline comments
 	if idx := strings.Index(value, " #"); idx != -1 {
 		value = strings.TrimSpace(value[:idx])
 	}
 	return key, value, nil
-}
-
-func normalizeKey(key string) string {
-	return strings.ToUpper(KeyRegexp.ReplaceAllString(key, "_"))
 }
 
 func (e *EnvFileResolver) resolve(file io.Reader, result *Result) {
@@ -88,21 +97,18 @@ func (e *EnvFileResolver) resolve(file io.Reader, result *Result) {
 			continue
 		}
 
-		// Normalize the key to match how Result.AppendItem will normalize it
-		normalizedKey := normalizeKey(key)
-
-		// Check for duplicate keys using normalized form
-		if _, exists := envVars[normalizedKey]; exists {
-			result.AppendError(fmt.Errorf("duplicate key '%s' found in env file, duplicate keys are not supported", normalizedKey))
+		// Check for duplicate keys
+		if _, exists := envVars[key]; exists {
+			result.AppendError(fmt.Errorf("duplicate key '%s' found in env file, duplicate keys are not supported", key))
 			continue
 		}
 
-		envVars[normalizedKey] = value
-		envVarsOrder = append(envVarsOrder, normalizedKey)
+		envVars[key] = value
+		envVarsOrder = append(envVarsOrder, key)
 
 		// If the value points to sm, we will need to resolve it before we can add it to the result
 		if strings.HasPrefix(value, "sm://") {
-			needsResolution[normalizedKey] = strings.TrimPrefix(value, "sm://")
+			needsResolution[key] = strings.TrimPrefix(value, "sm://")
 		}
 	}
 	if err := scanner.Err(); err != nil {
