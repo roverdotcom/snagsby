@@ -88,6 +88,12 @@ func ResolveSource(source *config.Source) *Result {
 			return &Result{Source: source, Errors: []error{err}}
 		}
 		s = NewManifestResolver(connector)
+	case "file":
+		connector, err := connectors.NewSecretsManagerConnector(source)
+		if err != nil {
+			return &Result{Source: source, Errors: []error{err}}
+		}
+		s = NewEnvFileResolver(connector)
 	default:
 		return &Result{Source: source, Errors: []error{fmt.Errorf("No resolver found for scheme %s", sourceURL.Scheme)}}
 	}
