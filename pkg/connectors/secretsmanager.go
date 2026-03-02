@@ -81,7 +81,7 @@ func (sm *SecretsManagerConnector) fetchSecretValue(secretName string) (string, 
 
 	getSecret, err := sm.secretsmanagerClient.GetSecretValue(ctx, input)
 	if err != nil {
-		fmt.Printf("Error fetching secret %s: %v\n", secretName, err)
+		fmt.Fprintf(os.Stderr, "Error fetching secret %s: %v\n", secretName, err)
 		return "", err
 	}
 

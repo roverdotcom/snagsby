@@ -25,11 +25,15 @@ func NewEnvFileResolver(connector envFileSecretsGetter) *EnvFileResolver {
 }
 
 func getFilePath(source *config.Source) string {
+	if source.URL.Scheme == "file" {
+		return source.URL.Path
+	}
 	return fmt.Sprintf("%s%s", source.URL.Host, source.URL.Path)
 }
 
 func processLine(line string) (string, string, error) {
-	if strings.TrimSpace(line) == "" || strings.HasPrefix(line, "#") {
+	trimmedLine := strings.TrimSpace(line)
+	if trimmedLine == "" || strings.HasPrefix(trimmedLine, "#") {
 		return "", "", nil
 	}
 
@@ -81,6 +85,9 @@ func (e *EnvFileResolver) resolve(file io.Reader, result *Result) {
 		if strings.HasPrefix(value, "sm://") {
 			needsResolution[key] = strings.TrimPrefix(value, "sm://")
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		result.AppendError(err)
 	}
 
 	// All lines have explicit values. No need to resolve them.

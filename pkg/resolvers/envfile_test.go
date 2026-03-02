@@ -214,7 +214,7 @@ func TestEnvFileResolve(t *testing.T) {
 
 }
 
-// Using actual tmp files to these the full feature
+// Using actual tmp files to test the full feature
 
 const envFileContents = `# This is a comment
 FOO=bar
