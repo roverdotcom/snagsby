@@ -11,6 +11,50 @@ import (
 	connectortesting "github.com/roverdotcom/snagsby/pkg/connectors/testing"
 )
 
+func TestGetFilePath(t *testing.T) {
+	examples := []struct {
+		name         string
+		urlString    string
+		expectedPath string
+	}{
+		{
+			name:         "absolute path with file scheme",
+			urlString:    "file:///absolute/path/to/file.env",
+			expectedPath: "/absolute/path/to/file.env",
+		},
+		{
+			name:         "relative path with current directory",
+			urlString:    "file://./pre-cache.env",
+			expectedPath: "./pre-cache.env",
+		},
+		{
+			name:         "relative path with parent directory",
+			urlString:    "file://../parent/file.env",
+			expectedPath: "../parent/file.env",
+		},
+		{
+			name:         "simple filename",
+			urlString:    "file://local.env",
+			expectedPath: "local.env",
+		},
+	}
+
+	for _, example := range examples {
+		t.Run(example.name, func(t *testing.T) {
+			parsedURL, err := url.Parse(example.urlString)
+			if err != nil {
+				t.Fatalf("Failed to parse URL: %v", err)
+			}
+			source := &config.Source{URL: parsedURL}
+			actualPath := getFilePath(source)
+			if actualPath != example.expectedPath {
+				t.Errorf("Expected path '%s' but got '%s' (URL.Host='%s', URL.Path='%s')",
+					example.expectedPath, actualPath, parsedURL.Host, parsedURL.Path)
+			}
+		})
+	}
+}
+
 func TestProcessLine(t *testing.T) {
 	examples := []struct {
 		name          string
@@ -60,6 +104,20 @@ func TestProcessLine(t *testing.T) {
 			expectedKey:   "",
 			expectedValue: "",
 			expectedError: fmt.Errorf("invalid line: FOO bar"),
+		},
+		{
+			name:          "empty key with value",
+			line:          "=value",
+			expectedKey:   "",
+			expectedValue: "",
+			expectedError: fmt.Errorf("invalid line: =value (empty key)"),
+		},
+		{
+			name:          "whitespace key with value",
+			line:          "  =value",
+			expectedKey:   "",
+			expectedValue: "",
+			expectedError: fmt.Errorf("invalid line:   =value (empty key)"),
 		},
 	}
 
@@ -138,6 +196,36 @@ func TestEnvFileResolve(t *testing.T) {
 			expectedErrors:           []string{"duplicate key 'FOO' found in env file, duplicate keys are not supported"},
 			expectedSecretsRequested: []string{},
 		},
+		{
+			name:                     "duplicate env var with different casing/chars should return error",
+			fileContents:             "foo-bar=value1\nFOO_BAR=value2",
+			expectedItems:            map[string]string{"FOO_BAR": "value1"},
+			expectedErrors:           []string{"duplicate key 'FOO_BAR' found in env file, duplicate keys are not supported"},
+			expectedSecretsRequested: []string{},
+		},
+		{
+			name:                     "duplicate normalized keys with secrets should error",
+			fileContents:             "my-key=sm://path/to/secret\nMY_KEY=direct-value",
+			expectedItems:            map[string]string{"MY_KEY": "resolved-value-for-sm://path/to/secret"},
+			expectedErrors:           []string{"duplicate key 'MY_KEY' found in env file, duplicate keys are not supported"},
+			expectedSecretsRequested: []string{"path/to/secret"},
+		},
+		{
+			name: "multiple env vars pointing to same secret should dedupe API calls",
+			fileContents: `FOO=sm://shared/secret
+BAR=sm://shared/secret
+BAZ=sm://other/secret
+QUX=sm://shared/secret`,
+			expectedItems: map[string]string{
+				"FOO": "resolved-value-for-sm://shared/secret",
+				"BAR": "resolved-value-for-sm://shared/secret",
+				"BAZ": "resolved-value-for-sm://other/secret",
+				"QUX": "resolved-value-for-sm://shared/secret",
+			},
+			expectedErrors: []string{},
+			// Should only request each unique secret path once
+			expectedSecretsRequested: []string{"shared/secret", "other/secret"},
+		},
 	}
 
 	requestedSecrets := []string{}
@@ -207,6 +295,35 @@ func TestEnvFileResolve(t *testing.T) {
 				}
 				if !found {
 					t.Errorf("Expected error '%s' not found in result errors", expectedError)
+				}
+			}
+
+			// Check that the secrets requested match expectations
+			if len(requestedSecrets) != len(example.expectedSecretsRequested) {
+				t.Errorf("Expected %d secrets to be requested but got %d: %v", len(example.expectedSecretsRequested), len(requestedSecrets), requestedSecrets)
+			}
+
+			// Create maps for easier comparison (order doesn't matter)
+			requestedMap := make(map[string]bool)
+			for _, secret := range requestedSecrets {
+				requestedMap[secret] = true
+			}
+			expectedMap := make(map[string]bool)
+			for _, secret := range example.expectedSecretsRequested {
+				expectedMap[secret] = true
+			}
+
+			// Check that all expected secrets were requested
+			for secret := range expectedMap {
+				if !requestedMap[secret] {
+					t.Errorf("Expected secret '%s' to be requested but it wasn't", secret)
+				}
+			}
+
+			// Check that no unexpected secrets were requested
+			for secret := range requestedMap {
+				if !expectedMap[secret] {
+					t.Errorf("Unexpected secret '%s' was requested", secret)
 				}
 			}
 		})

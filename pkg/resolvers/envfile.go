@@ -25,10 +25,18 @@ func NewEnvFileResolver(connector envFileSecretsGetter) *EnvFileResolver {
 }
 
 func getFilePath(source *config.Source) string {
-	if source.URL.Scheme == "file" {
-		return source.URL.Path
+	// For file:// URLs, if there's a host component (e.g., file://./path or file://filename),
+	// we need to concatenate host and path to preserve relative paths
+	if source.URL.Host != "" {
+		// Handle case where path is empty (e.g., file://filename)
+		if source.URL.Path == "" {
+			return source.URL.Host
+		}
+		// Remove leading slash from path to avoid double slashes
+		path := strings.TrimPrefix(source.URL.Path, "/")
+		return fmt.Sprintf("%s/%s", source.URL.Host, path)
 	}
-	return fmt.Sprintf("%s%s", source.URL.Host, source.URL.Path)
+	return source.URL.Path
 }
 
 func processLine(line string) (string, string, error) {
@@ -44,11 +52,19 @@ func processLine(line string) (string, string, error) {
 	key := strings.TrimSpace(parts[0])
 	value := strings.TrimSpace(parts[1])
 
+	if key == "" {
+		return "", "", fmt.Errorf("invalid line: %s (empty key)", line)
+	}
+
 	// Remove inline comments
 	if idx := strings.Index(value, " #"); idx != -1 {
 		value = strings.TrimSpace(value[:idx])
 	}
 	return key, value, nil
+}
+
+func normalizeKey(key string) string {
+	return strings.ToUpper(KeyRegexp.ReplaceAllString(key, "_"))
 }
 
 func (e *EnvFileResolver) resolve(file io.Reader, result *Result) {
@@ -72,18 +88,21 @@ func (e *EnvFileResolver) resolve(file io.Reader, result *Result) {
 			continue
 		}
 
-		// Check for duplicate keys
-		if _, exists := envVars[key]; exists {
-			result.AppendError(fmt.Errorf("duplicate key '%s' found in env file, duplicate keys are not supported", key))
+		// Normalize the key to match how Result.AppendItem will normalize it
+		normalizedKey := normalizeKey(key)
+
+		// Check for duplicate keys using normalized form
+		if _, exists := envVars[normalizedKey]; exists {
+			result.AppendError(fmt.Errorf("duplicate key '%s' found in env file, duplicate keys are not supported", normalizedKey))
 			continue
 		}
 
-		envVars[key] = value
-		envVarsOrder = append(envVarsOrder, key)
+		envVars[normalizedKey] = value
+		envVarsOrder = append(envVarsOrder, normalizedKey)
 
 		// If the value points to sm, we will need to resolve it before we can add it to the result
 		if strings.HasPrefix(value, "sm://") {
-			needsResolution[key] = strings.TrimPrefix(value, "sm://")
+			needsResolution[normalizedKey] = strings.TrimPrefix(value, "sm://")
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -100,7 +119,12 @@ func (e *EnvFileResolver) resolve(file io.Reader, result *Result) {
 	}
 
 	// The values in the original env file contain the path for secrets manager
-	secretKeys := slices.Collect(maps.Values(needsResolution))
+	// Dedupe secret keys to avoid redundant API calls
+	secretKeysMap := make(map[string]bool)
+	for _, secretPath := range needsResolution {
+		secretKeysMap[secretPath] = true
+	}
+	secretKeys := slices.Collect(maps.Keys(secretKeysMap))
 	secrets, errors := e.connector.GetSecrets(secretKeys)
 
 	for _, err := range errors {

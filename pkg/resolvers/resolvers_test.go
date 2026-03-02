@@ -131,19 +131,24 @@ func TestResolveSource(t *testing.T) {
 		t.Error("Expected at least one error in Errors slice")
 	}
 
-	// Test with each valid scheme (will error due to no AWS, but scheme routing works)
-	schemes := []string{"s3", "sm", "manifest"}
+	// Test with each valid scheme (will error due to no AWS/missing file, but scheme routing works)
+	schemes := []string{"s3", "sm", "manifest", "file"}
 	for _, scheme := range schemes {
 		testURL, _ := url.Parse(scheme + "://test/path")
 		testSource := &config.Source{URL: testURL}
 		result := ResolveSource(testSource)
 
-		// Result should exist (even if it has errors due to missing AWS resources)
+		// Result should exist (even if it has errors due to missing AWS resources or files)
 		if result == nil {
 			t.Errorf("Expected result for scheme %s, got nil", scheme)
 		}
 		if result.Source != testSource {
 			t.Errorf("Expected result.Source to match input source for scheme %s", scheme)
+		}
+
+		// For file scheme, we expect an error since the file doesn't exist
+		if scheme == "file" && !result.HasErrors() {
+			t.Errorf("Expected file scheme to error for non-existent file")
 		}
 	}
 }
