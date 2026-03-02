@@ -49,7 +49,7 @@ func TestGetSources(t *testing.T) {
 
 	// Passing in no sources is fine
 	config.SetSources(emptyArgs, emptyEnv)
-	if config.LenSources() != 0 {
+	if config.lenSources() != 0 {
 		t.Errorf("Expected an error parsing empty args and env")
 	}
 
@@ -61,12 +61,12 @@ func TestGetSources(t *testing.T) {
 	}
 
 	err := config.SetSources([]string{":"}, "")
-	if err == nil || config.LenSources() != 0 {
+	if err == nil || config.lenSources() != 0 {
 		t.Errorf("Expected a parsing url for the : url")
 	}
 
 	err = config.SetSources([]string{}, `"sm://nicholas/nickleby, sm://esther/summerson`)
-	if err == nil || config.LenSources() != 0 {
+	if err == nil || config.lenSources() != 0 {
 		t.Errorf("Expected a parsing url for the : url")
 	}
 
