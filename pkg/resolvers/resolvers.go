@@ -34,6 +34,16 @@ func (r *Result) AppendItem(key, value string) {
 	r.Items[key] = value
 }
 
+// AppendItemExact adds an item to the internal Items map without any key normalization.
+// Use this when you need to preserve the exact key as provided (e.g., from env files).
+func (r *Result) AppendItemExact(key, value string) {
+	// Initialize if we have to
+	if r.Items == nil {
+		r.Items = map[string]string{}
+	}
+	r.Items[key] = value
+}
+
 // AppendItems adds a map of items to our internal items store
 func (r *Result) AppendItems(items map[string]string) {
 	// Initialize if we have to

@@ -135,11 +135,11 @@ func populateResultWithSecrets(parsed *parsedEnvFile, secrets map[string]string,
 		secretPath, needsSecret := parsed.needsResolution[key]
 		if needsSecret {
 			if secretValue, found := secrets[secretPath]; found {
-				result.AppendItem(key, secretValue)
+				result.AppendItemExact(key, secretValue)
 			}
 			// If secret not found, skip it (error already reported during GetSecrets)
 		} else {
-			result.AppendItem(key, parsed.envVars[key])
+			result.AppendItemExact(key, parsed.envVars[key])
 		}
 	}
 }
@@ -150,7 +150,7 @@ func (e *EnvFileResolver) resolve(file io.Reader, result *Result) {
 	// All lines have explicit values. No need to resolve them.
 	if len(parsed.needsResolution) == 0 {
 		for _, key := range parsed.envVarsOrder {
-			result.AppendItem(key, parsed.envVars[key])
+			result.AppendItemExact(key, parsed.envVars[key])
 		}
 		return
 	}

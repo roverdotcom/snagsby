@@ -275,6 +275,13 @@ QUX=sm://shared/secret`,
 			// Should only request each unique secret path once
 			expectedSecretsRequested: []string{"shared/secret", "other/secret"},
 		},
+		{
+			name:                     "keys are preserved exactly without normalization",
+			fileContents:             "lowercase_var=value1\nMIXED_Case_Var=value2\nUPPERCASE_VAR=value3",
+			expectedItems:            map[string]string{"lowercase_var": "value1", "MIXED_Case_Var": "value2", "UPPERCASE_VAR": "value3"},
+			expectedErrors:           []string{},
+			expectedSecretsRequested: []string{},
+		},
 	}
 
 	requestedSecrets := []string{}
