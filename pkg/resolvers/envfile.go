@@ -48,7 +48,10 @@ func getFilePath(source *config.Source) string {
 	return source.URL.Path
 }
 
-func processLine(line string) (string, string, error) {
+// parseEnvLine parses a single line from an env file into a key-value pair.
+// It validates env var names, strips comments and whitespace.
+// Returns empty strings for blank lines or comment-only lines (no error).
+func parseEnvLine(line string) (string, string, error) {
 	trimmedLine := strings.TrimSpace(line)
 	if trimmedLine == "" || strings.HasPrefix(trimmedLine, "#") {
 		return "", "", nil
@@ -76,18 +79,26 @@ func processLine(line string) (string, string, error) {
 	return key, value, nil
 }
 
-func (e *EnvFileResolver) resolve(file io.Reader, result *Result) {
-	needsResolution := map[string]string{}
+// parsedEnvFile holds the parsed environment variables from a file.
+type parsedEnvFile struct {
+	envVars         map[string]string
+	envVarsOrder    []string
+	needsResolution map[string]string
+}
 
-	envVars := make(map[string]string)
-
-	// We will use this to ensure we keep the same order of env vars as in the file
-	envVarsOrder := []string{}
+// parseEnvFile reads and parses an env file, identifying variables and secrets.
+// Returns parsed data structure with env vars, their order, and secrets needing resolution.
+func parseEnvFile(file io.Reader, result *Result) *parsedEnvFile {
+	parsed := &parsedEnvFile{
+		envVars:         make(map[string]string),
+		envVarsOrder:    []string{},
+		needsResolution: map[string]string{},
+	}
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		key, value, err := processLine(line)
+		key, value, err := parseEnvLine(line)
 		if err != nil {
 			result.AppendError(err)
 			continue
@@ -98,28 +109,48 @@ func (e *EnvFileResolver) resolve(file io.Reader, result *Result) {
 		}
 
 		// Check for duplicate keys
-		if _, exists := envVars[key]; exists {
+		if _, exists := parsed.envVars[key]; exists {
 			result.AppendError(fmt.Errorf("duplicate key '%s' found in env file, duplicate keys are not supported", key))
 			continue
 		}
 
-		envVars[key] = value
-		envVarsOrder = append(envVarsOrder, key)
+		parsed.envVars[key] = value
+		parsed.envVarsOrder = append(parsed.envVarsOrder, key)
 
 		// If the value points to sm, we will need to resolve it before we can add it to the result
 		if strings.HasPrefix(value, "sm://") {
-			needsResolution[key] = strings.TrimPrefix(value, "sm://")
+			parsed.needsResolution[key] = strings.TrimPrefix(value, "sm://")
 		}
 	}
 	if err := scanner.Err(); err != nil {
 		result.AppendError(err)
 	}
 
-	// All lines have explicit values. No need to resolve them.
-	if len(needsResolution) == 0 {
+	return parsed
+}
 
-		for _, key := range envVarsOrder {
-			result.AppendItem(key, envVars[key])
+// populateResultWithSecrets adds environment variables to the result, resolving secrets as needed.
+func populateResultWithSecrets(parsed *parsedEnvFile, secrets map[string]string, result *Result) {
+	for _, key := range parsed.envVarsOrder {
+		secretPath, needsSecret := parsed.needsResolution[key]
+		if needsSecret {
+			if secretValue, found := secrets[secretPath]; found {
+				result.AppendItem(key, secretValue)
+			}
+			// If secret not found, skip it (error already reported during GetSecrets)
+		} else {
+			result.AppendItem(key, parsed.envVars[key])
+		}
+	}
+}
+
+func (e *EnvFileResolver) resolve(file io.Reader, result *Result) {
+	parsed := parseEnvFile(file, result)
+
+	// All lines have explicit values. No need to resolve them.
+	if len(parsed.needsResolution) == 0 {
+		for _, key := range parsed.envVarsOrder {
+			result.AppendItem(key, parsed.envVars[key])
 		}
 		return
 	}
@@ -127,7 +158,7 @@ func (e *EnvFileResolver) resolve(file io.Reader, result *Result) {
 	// The values in the original env file contain the path for secrets manager
 	// Dedupe secret keys to avoid redundant API calls
 	secretKeysMap := make(map[string]bool)
-	for _, secretPath := range needsResolution {
+	for _, secretPath := range parsed.needsResolution {
 		secretKeysMap[secretPath] = true
 	}
 	secretKeys := slices.Collect(maps.Keys(secretKeysMap))
@@ -137,16 +168,7 @@ func (e *EnvFileResolver) resolve(file io.Reader, result *Result) {
 		result.AppendError(err)
 	}
 
-	for _, key := range envVarsOrder {
-		if _, ok := needsResolution[key]; ok {
-			if _, ok := secrets[needsResolution[key]]; ok {
-				result.AppendItem(key, secrets[needsResolution[key]])
-			}
-		} else {
-			result.AppendItem(key, envVars[key])
-		}
-	}
-
+	populateResultWithSecrets(parsed, secrets, result)
 }
 
 func (e *EnvFileResolver) Resolve(source *config.Source) *Result {

@@ -172,7 +172,7 @@ func TestProcessLine(t *testing.T) {
 
 	for _, example := range examples {
 		t.Run(example.name, func(t *testing.T) {
-			key, value, err := processLine(example.line)
+			key, value, err := parseEnvLine(example.line)
 			if key != example.expectedKey {
 				t.Errorf("Expected key '%s' but got '%s'", example.expectedKey, key)
 			}
