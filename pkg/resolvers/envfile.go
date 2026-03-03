@@ -49,7 +49,8 @@ func getFilePath(source *config.Source) string {
 }
 
 // parseEnvLine parses a single line from an env file into a key-value pair.
-// It validates env var names, strips comments and whitespace.
+// It validates env var names, strips comments and whitespace, and handles quoted values.
+// Quoted values (using " or ') preserve their content including hashes and whitespace.
 // Returns empty strings for blank lines or comment-only lines (no error).
 func parseEnvLine(line string) (string, string, error) {
 	trimmedLine := strings.TrimSpace(line)
@@ -72,7 +73,26 @@ func parseEnvLine(line string) (string, string, error) {
 		return "", "", fmt.Errorf("invalid key '%s': environment variable names must contain only letters, digits, and underscores, and must start with a letter or underscore", key)
 	}
 
-	// Remove inline comments
+	// Handle quoted values (both single and double quotes)
+	if len(value) >= 1 {
+		firstChar := value[0]
+		if firstChar == '"' || firstChar == '\'' {
+			// Find the closing quote
+			closingQuoteIdx := strings.IndexByte(value[1:], firstChar)
+			if closingQuoteIdx == -1 {
+				// No closing quote found
+				return key, "", fmt.Errorf("invalid line: %s (uneven quotes)", line)
+			}
+			// closingQuoteIdx is relative to value[1:], so actual index is closingQuoteIdx + 1
+			actualClosingIdx := closingQuoteIdx + 1
+			// Extract the value between quotes
+			quotedValue := value[1:actualClosingIdx]
+			// Everything after the closing quote is ignored (including comments)
+			return key, quotedValue, nil
+		}
+	}
+
+	// Remove inline comments for unquoted values
 	if idx := strings.Index(value, " #"); idx != -1 {
 		value = strings.TrimSpace(value[:idx])
 	}
