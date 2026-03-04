@@ -56,7 +56,8 @@ func getFilePath(source *config.Source) string {
 // contain only alphanumerics and underscores). Keys are preserved exactly as written.
 // Quoted values (using " or ') preserve their content including hashes and whitespace.
 // Returns empty strings for blank lines or comment-only lines (no error).
-func parseEnvLine(line string) (string, string, error) {
+// lineNum is used in error messages to identify the problematic line without exposing its content.
+func parseEnvLine(line string, lineNum int) (string, string, error) {
 	trimmedLine := strings.TrimSpace(line)
 	if trimmedLine == "" || strings.HasPrefix(trimmedLine, "#") {
 		return "", "", nil
@@ -64,13 +65,13 @@ func parseEnvLine(line string) (string, string, error) {
 
 	parts := strings.SplitN(line, "=", 2)
 	if len(parts) != 2 {
-		return "", "", fmt.Errorf("invalid line: %s", line)
+		return "", "", fmt.Errorf("line %d: missing '=' separator", lineNum)
 	}
 	key := strings.TrimSpace(parts[0])
 	value := strings.TrimSpace(parts[1])
 
 	if key == "" {
-		return "", "", fmt.Errorf("invalid line: %s (empty key)", line)
+		return "", "", fmt.Errorf("line %d: empty key", lineNum)
 	}
 
 	if !isValidEnvVarName(key) {
@@ -85,7 +86,7 @@ func parseEnvLine(line string) (string, string, error) {
 			closingQuoteIdx := strings.IndexByte(value[1:], firstChar)
 			if closingQuoteIdx == -1 {
 				// No closing quote found
-				return key, "", fmt.Errorf("invalid line: %s (uneven quotes)", line)
+				return key, "", fmt.Errorf("line %d: uneven quotes for key '%s'", lineNum, key)
 			}
 			// closingQuoteIdx is relative to value[1:], so actual index is closingQuoteIdx + 1
 			actualClosingIdx := closingQuoteIdx + 1
@@ -120,9 +121,11 @@ func parseEnvFile(file io.Reader, result *Result) *parsedEnvFile {
 	}
 
 	scanner := bufio.NewScanner(file)
+	lineNum := 0
 	for scanner.Scan() {
+		lineNum++
 		line := scanner.Text()
-		key, value, err := parseEnvLine(line)
+		key, value, err := parseEnvLine(line, lineNum)
 		if err != nil {
 			result.AppendError(err)
 			continue

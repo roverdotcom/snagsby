@@ -108,21 +108,21 @@ func TestProcessLine(t *testing.T) {
 			line:          "FOO bar",
 			expectedKey:   "",
 			expectedValue: "",
-			expectedError: fmt.Errorf("invalid line: FOO bar"),
+			expectedError: fmt.Errorf("line 0: missing '=' separator"),
 		},
 		{
 			name:          "empty key with value",
 			line:          "=value",
 			expectedKey:   "",
 			expectedValue: "",
-			expectedError: fmt.Errorf("invalid line: =value (empty key)"),
+			expectedError: fmt.Errorf("line 0: empty key"),
 		},
 		{
 			name:          "whitespace key with value",
 			line:          "  =value",
 			expectedKey:   "",
 			expectedValue: "",
-			expectedError: fmt.Errorf("invalid line:   =value (empty key)"),
+			expectedError: fmt.Errorf("line 0: empty key"),
 		},
 		{
 			name:          "key with dash should fail",
@@ -192,7 +192,7 @@ func TestProcessLine(t *testing.T) {
 			line:          "FOO_123_BAR=\"value",
 			expectedKey:   "FOO_123_BAR",
 			expectedValue: "",
-			expectedError: fmt.Errorf("invalid line: FOO_123_BAR=\"value (uneven quotes)"),
+			expectedError: fmt.Errorf("line 0: uneven quotes for key 'FOO_123_BAR'"),
 		},
 		{
 			name:          "empty quoted value",
@@ -220,7 +220,7 @@ func TestProcessLine(t *testing.T) {
 			line:          "KEY='value",
 			expectedKey:   "KEY",
 			expectedValue: "",
-			expectedError: fmt.Errorf("invalid line: KEY='value (uneven quotes)"),
+			expectedError: fmt.Errorf("line 0: uneven quotes for key 'KEY'"),
 		},
 		{
 			name:          "value with equals sign",
@@ -255,7 +255,7 @@ func TestProcessLine(t *testing.T) {
 			line:          "KEY=\"value'",
 			expectedKey:   "KEY",
 			expectedValue: "",
-			expectedError: fmt.Errorf("invalid line: KEY=\"value' (uneven quotes)"),
+			expectedError: fmt.Errorf("line 0: uneven quotes for key 'KEY'"),
 		},
 		{
 			name:          "value with newline in quotes",
@@ -268,7 +268,7 @@ func TestProcessLine(t *testing.T) {
 
 	for _, example := range examples {
 		t.Run(example.name, func(t *testing.T) {
-			key, value, err := parseEnvLine(example.line)
+			key, value, err := parseEnvLine(example.line, 0)
 			if key != example.expectedKey {
 				t.Errorf("Expected key '%s' but got '%s'", example.expectedKey, key)
 			}
@@ -333,6 +333,27 @@ func TestEnvFileResolve(t *testing.T) {
 			expectedItems:            map[string]string{},
 			expectedErrors:           []string{"secret not found: sm://path/to/not-found"},
 			expectedSecretsRequested: []string{"path/to/not-found"},
+		},
+		{
+			name:                     "invalid line on line 3 reports correct line number",
+			fileContents:             "FOO=bar\nBAR=baz\nno_equals_here\nQUX=quux",
+			expectedItems:            map[string]string{"FOO": "bar", "BAR": "baz", "QUX": "quux"},
+			expectedErrors:           []string{"line 3: missing '=' separator"},
+			expectedSecretsRequested: []string{},
+		},
+		{
+			name:                     "uneven quotes on line 2 reports correct line number",
+			fileContents:             "FOO=bar\nBAR=\"unclosed",
+			expectedItems:            map[string]string{"FOO": "bar"},
+			expectedErrors:           []string{"line 2: uneven quotes for key 'BAR'"},
+			expectedSecretsRequested: []string{},
+		},
+		{
+			name:                     "empty key on line 1 reports correct line number",
+			fileContents:             "=value\nFOO=bar",
+			expectedItems:            map[string]string{"FOO": "bar"},
+			expectedErrors:           []string{"line 1: empty key"},
+			expectedSecretsRequested: []string{},
 		},
 		{
 			name:                     "duplicate env var should return error",
