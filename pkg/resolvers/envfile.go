@@ -13,8 +13,8 @@ import (
 	"github.com/roverdotcom/snagsby/pkg/config"
 )
 
-// envVarNameRegexp validates environment variable names
-// Must start with letter or underscore, followed by letters, digits, or underscores
+// envVarNameRegexp validates POSIX-compliant environment variable names.
+// Must start with letter or underscore, followed by letters, digits, or underscores.
 var envVarNameRegexp = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 type envFileSecretsGetter interface {
@@ -29,6 +29,8 @@ func NewEnvFileResolver(connector envFileSecretsGetter) *EnvFileResolver {
 	return &EnvFileResolver{connector: connector}
 }
 
+// isValidEnvVarName checks if a key is a valid POSIX environment variable name.
+// Rejects keys with dashes, dots, or starting with digits.
 func isValidEnvVarName(key string) bool {
 	return envVarNameRegexp.MatchString(key)
 }
@@ -50,7 +52,8 @@ func getFilePath(source *config.Source) string {
 }
 
 // parseEnvLine parses a single line from an env file into a key-value pair.
-// It validates env var names, strips comments and whitespace, and handles quoted values.
+// Keys must be valid POSIX environment variable names (start with letter/underscore,
+// contain only alphanumerics and underscores). Keys are preserved exactly as written.
 // Quoted values (using " or ') preserve their content including hashes and whitespace.
 // Returns empty strings for blank lines or comment-only lines (no error).
 func parseEnvLine(line string) (string, string, error) {

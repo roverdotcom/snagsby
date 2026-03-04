@@ -7,7 +7,6 @@ as environment variables in a format that can be evaluated by a shell.
 - Local env files (`file://`) with dotenv format
 - AWS S3 JSON objects (`s3://`)
 - AWS Secrets Manager (`sm://`)
-- Manifest files (`manifest://`)
 
 It's useful for reading configuration and secrets into environment variables in
 Docker containers and other deployment scenarios.
@@ -151,14 +150,27 @@ snagsby \
   s3://my-bucket/config.json?region=us-west-2
 ```
 
-### Validation
+### Validation and Key Handling
 
-Snagsby validates environment variable names to ensure they:
-- Start with a letter or underscore
-- Contain only letters, digits, and underscores
-- Match standard shell environment variable naming conventions
+**Env files require strict POSIX-compliant variable names:**
 
-Invalid keys (e.g., with dashes or dots) will be rejected with a clear error message.
+Environment variable names in env files must follow shell naming conventions:
+- Start with a letter or underscore (`[a-zA-Z_]`)
+- Contain only letters, digits, and underscores (`[a-zA-Z0-9_]`)
+
+Invalid keys (e.g., `my-key` with dashes, `my.key` with dots, or `123key` starting with a digit) will be rejected with a clear error message.
+
+**Why strict validation?**
+
+Unlike other Snagsby resolvers (S3, Secrets Manager) that normalize arbitrary keys (e.g., converting `my-key` to `MY_KEY`), env files are meant to define actual shell environment variables. Since shells only accept POSIX-compliant names, we validate at parse time to catch errors early.
+
+**Key preservation:**
+
+Keys in env files are preserved exactly as written, including their case. For example:
+- `DATABASE_URL=...` stays as `DATABASE_URL` (not normalized to uppercase)
+- `lowercase_var=...` stays as `lowercase_var`
+
+This matches standard `.env` file behavior and ensures variables are set exactly as intended.
 
 ## AWS Configuration
 
