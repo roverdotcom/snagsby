@@ -138,7 +138,7 @@ While Snagsby accepts any file extension, we recommend using extensions that cle
 - `.env.ref` - Short for "references"
 - `.envmap` - Conveys "mapping to secrets"
 
-It is recommended to **avoid using `.env`** for files with secret references, as it may give developers a false sense that the file is safe to commit with actual secrets or that the file will not be commited to the repository.
+It is recommended to **avoid using `.env`** for files with secret references, as it may give developers a false sense that the file is safe to commit with actual secrets or that the file will not be committed to the repository.
 
 ### Multiple Sources
 
