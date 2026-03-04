@@ -60,11 +60,11 @@ export YES="1"
 You can supply sources in a comma delimited `SNAGSBY_SOURCE` environment variable:
 
 ```bash
-SNAGSBY_SOURCE="file://base.env.vault, s3://my-bucket/secrets.json" ./bin/snagsby
+SNAGSBY_SOURCE="file://base.snagsby,  s3://my-bucket/secrets.json" ./bin/snagsby
 
 # -e will fail on errors and exit 1
 ./bin/snagsby -e \
-  file://production.env.vault \
+  file://production.snagsby \
   s3://my-bucket/config.json \
   s3://my-bucket/config2.json
 ```
@@ -78,8 +78,8 @@ set -e
 
 # Combine local config with remote secrets
 eval $(./bin/snagsby \
-  file://config/base.env.vault \
-  file://config/production.env.vault \
+  file://config/base.snagsby \
+  file://config/production.snagsby \
   s3://my-bucket/config.json?region=us-west-2)
 
 exec "$@"
@@ -92,7 +92,7 @@ Snagsby supports reading environment variables from local files using the `file:
 ### Basic Usage
 
 ```bash
-snagsby file://local.env.vault
+snagsby file://local.snagsby
 ```
 
 ### File Format
@@ -133,11 +133,12 @@ Snagsby will automatically fetch the secrets from AWS Secrets Manager and popula
 
 While Snagsby accepts any file extension, we recommend using extensions that clearly indicate the file contains **secret references**, not actual secrets:
 
+- `.snagsby` - Clear about the tool used to resolve the secrets
 - `.env.vault` - Suggests secrets/vault references
 - `.env.ref` - Short for "references"
 - `.envmap` - Conveys "mapping to secrets"
 
-**Avoid using `.env`** for files with secret references, as it may give developers a false sense that the file is safe to commit with actual secrets.
+It is recommended to **avoid using `.env`** for files with secret references, as it may give developers a false sense that the file is safe to commit with actual secrets or that the file will not be commited to the repository.
 
 ### Multiple Sources
 
@@ -145,8 +146,8 @@ You can combine multiple source types:
 
 ```bash
 snagsby \
-  file://base.env.vault \
-  file://production.env.vault \
+  file://base.snagsby \
+  file://production.snagsby \
   s3://my-bucket/config.json?region=us-west-2
 ```
 
