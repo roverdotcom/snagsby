@@ -82,9 +82,18 @@ func (r *Result) LenItems() int {
 // ResolveSource will resolve a config.Source to a Result object
 func ResolveSource(source *config.Source) *Result {
 	if source == nil {
-		panic("resolvers.ResolveSource: source must not be nil (this is a programming error)")
+		return &Result{
+			Source: nil,
+			Errors: []error{fmt.Errorf("resolvers.ResolveSource: source must not be nil")},
+		}
 	}
 
+	if source.URL == nil {
+		return &Result{
+			Source: source,
+			Errors: []error{fmt.Errorf("resolvers.ResolveSource: source.URL must not be nil")},
+		}
+	}
 	sourceURL := source.URL
 	var s Resolver
 	switch sourceURL.Scheme {
