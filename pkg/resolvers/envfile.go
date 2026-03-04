@@ -34,18 +34,19 @@ func isValidEnvVarName(key string) bool {
 }
 
 func getFilePath(source *config.Source) string {
-	// For file:// URLs, if there's a host component (e.g., file://./path or file://filename),
-	// we need to concatenate host and path to preserve relative paths
-	if source.URL.Host != "" {
-		// Handle case where path is empty (e.g., file://filename)
-		if source.URL.Path == "" {
-			return source.URL.Host
-		}
-		// Remove leading slash from path to avoid double slashes
-		path := strings.TrimPrefix(source.URL.Path, "/")
-		return fmt.Sprintf("%s/%s", source.URL.Host, path)
+	// Absolute path: file:///absolute/path -> Host="", Path="/absolute/path"
+	if source.URL.Host == "" {
+		return source.URL.Path
 	}
-	return source.URL.Path
+
+	// Relative path with only filename: file://filename -> Host="filename", Path=""
+	if source.URL.Path == "" {
+		return source.URL.Host
+	}
+
+	// Relative path: file://./path or file://../path -> Host="." or "..", Path="/path"
+	// Simply concatenate host and path (path already has leading slash)
+	return source.URL.Host + source.URL.Path
 }
 
 // parseEnvLine parses a single line from an env file into a key-value pair.

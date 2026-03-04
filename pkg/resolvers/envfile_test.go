@@ -33,6 +33,11 @@ func TestGetFilePath(t *testing.T) {
 			expectedPath: "../parent/file.env",
 		},
 		{
+			name:         "relative path with 2 levels up directory",
+			urlString:    "file://../../parent/file.env",
+			expectedPath: "../../parent/file.env",
+		},
+		{
 			name:         "simple filename",
 			urlString:    "file://local.env",
 			expectedPath: "local.env",
