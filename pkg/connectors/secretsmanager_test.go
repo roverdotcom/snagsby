@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -160,19 +161,19 @@ func TestGetSecretWithVersionID(t *testing.T) {
 // TestGetSecretErrors tests error handling in GetSecret
 func TestGetSecretErrors(t *testing.T) {
 	tests := []struct {
-		name          string
-		mockBehavior  mockAWSSecretsManagerBehavior
-		expectedError string
+		name               string
+		mockBehavior       mockAWSSecretsManagerBehavior
+		expectedErrorSubstring string
 	}{
 		{
-			name:          "access denied error",
-			mockBehavior:  errorBehavior(errors.New("access denied")),
-			expectedError: "access denied",
+			name:               "access denied error",
+			mockBehavior:       errorBehavior(errors.New("access denied")),
+			expectedErrorSubstring: "access denied",
 		},
 		{
-			name:          "secret not found error",
-			mockBehavior:  errorBehavior(errors.New("secret not found")),
-			expectedError: "secret not found",
+			name:               "secret not found error",
+			mockBehavior:       errorBehavior(errors.New("secret not found")),
+			expectedErrorSubstring: "secret not found",
 		},
 	}
 
@@ -187,8 +188,8 @@ func TestGetSecretErrors(t *testing.T) {
 
 			if err == nil {
 				t.Error("Expected error but got none")
-			} else if err.Error() != tt.expectedError {
-				t.Errorf("Expected error '%s', got '%s'", tt.expectedError, err.Error())
+			} else if !strings.Contains(err.Error(), tt.expectedErrorSubstring) {
+				t.Errorf("Expected error containing '%s', got '%s'", tt.expectedErrorSubstring, err.Error())
 			}
 		})
 	}

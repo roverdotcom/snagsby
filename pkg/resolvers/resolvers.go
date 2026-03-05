@@ -34,6 +34,16 @@ func (r *Result) AppendItem(key, value string) {
 	r.Items[key] = value
 }
 
+// AppendItemExact adds an item to the internal Items map without any key normalization.
+// Use this when you need to preserve the exact key as provided (e.g., from env files).
+func (r *Result) AppendItemExact(key, value string) {
+	// Initialize if we have to
+	if r.Items == nil {
+		r.Items = map[string]string{}
+	}
+	r.Items[key] = value
+}
+
 // AppendItems adds a map of items to our internal items store
 func (r *Result) AppendItems(items map[string]string) {
 	// Initialize if we have to
@@ -71,6 +81,19 @@ func (r *Result) LenItems() int {
 
 // ResolveSource will resolve a config.Source to a Result object
 func ResolveSource(source *config.Source) *Result {
+	if source == nil {
+		return &Result{
+			Source: nil,
+			Errors: []error{fmt.Errorf("resolvers.ResolveSource: source must not be nil")},
+		}
+	}
+
+	if source.URL == nil {
+		return &Result{
+			Source: source,
+			Errors: []error{fmt.Errorf("resolvers.ResolveSource: source.URL must not be nil")},
+		}
+	}
 	sourceURL := source.URL
 	var s Resolver
 	switch sourceURL.Scheme {
@@ -88,6 +111,12 @@ func ResolveSource(source *config.Source) *Result {
 			return &Result{Source: source, Errors: []error{err}}
 		}
 		s = NewManifestResolver(connector)
+	case "file":
+		connector, err := connectors.NewSecretsManagerConnector(source)
+		if err != nil {
+			return &Result{Source: source, Errors: []error{err}}
+		}
+		s = NewEnvFileResolver(connector)
 	default:
 		return &Result{Source: source, Errors: []error{fmt.Errorf("No resolver found for scheme %s", sourceURL.Scheme)}}
 	}

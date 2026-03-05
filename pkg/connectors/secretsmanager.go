@@ -27,6 +27,9 @@ type SecretsManagerAPIClient interface {
 	GetSecretValueAPIClient
 }
 
+// SecretsManagerConnector provides methods for retrieving secrets from AWS Secrets Manager.
+// The struct fields are private to prevent direct instantiation outside this package.
+// Use NewSecretsManagerConnector to create instances.
 type SecretsManagerConnector struct {
 	secretsmanagerClient SecretsManagerAPIClient
 	source               *config.Source
@@ -38,6 +41,12 @@ func NewSecretsManagerConnector(source *config.Source) (*SecretsManagerConnector
 		return nil, err
 	}
 	return &SecretsManagerConnector{secretsmanagerClient: secretsManagerClient, source: source}, nil
+}
+
+// NewSecretsManagerConnectorWithClient creates a new SecretsManagerConnector with a custom API client.
+// This is primarily used for testing to inject a mock client. Production code should use NewSecretsManagerConnector instead.
+func NewSecretsManagerConnectorWithClient(client SecretsManagerAPIClient, source *config.Source) *SecretsManagerConnector {
+	return &SecretsManagerConnector{secretsmanagerClient: client, source: source}
 }
 
 func (sm *SecretsManagerConnector) getConcurrencyOrDefault(keyLength int) int {
@@ -72,7 +81,7 @@ func (sm *SecretsManagerConnector) fetchSecretValue(secretName string) (string, 
 
 	getSecret, err := sm.secretsmanagerClient.GetSecretValue(ctx, input)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("fetching secret %q: %w", secretName, err)
 	}
 
 	if getSecret.SecretString == nil {
